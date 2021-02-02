@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+    "ledger-iota",
+    "ledger-tests",
+]
