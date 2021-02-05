@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
 
-use ledger_iota::LedgerBIP32Index;
+use iota_ledger::LedgerBIP32Index;
 
 use iota::message::payload::transaction::{
     Address, Ed25519Address, Ed25519Signature, Input, Output, ReferenceUnlock,
@@ -28,7 +28,7 @@ use bee_signing_ext::{
     Signature, Verifier,
 };
 
-use ledger_iota::ledger_apdu::{APDUAnswer, APDUCommand};
+use iota_ledger::ledger_apdu::{APDUAnswer, APDUCommand};
 
 use std::error::Error;
 
@@ -269,7 +269,7 @@ pub fn get_transaction_unlock_blocks(
 }
 
 pub fn random_essence(
-    transport_type: &ledger_iota::TransportTypes,
+    transport_type: &iota_ledger::TransportTypes,
     seed: &[u8],
     rnd: &mut SmallRng,
     non_interactive: bool,
@@ -316,7 +316,7 @@ pub fn random_essence(
     println!("account: 0x{:08x}", account & !0x80000000);
 
     // get new ledger object (for testing)
-    let ledger = ledger_iota::get_ledger_by_type(account, transport_type, Some(watcher_cb))?;
+    let ledger = iota_ledger::get_ledger_by_type(account, transport_type, Some(watcher_cb))?;
 
     let hrp: &str = if !ledger.is_debug_app() {
         "iota"
@@ -789,9 +789,9 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         writer.set_format_type(format_type);
         writer.open(String::from(filename.unwrap()))?;
         drop(writer);
-        ledger_iota::TransportTypes::TCPWatcher
+        iota_ledger::TransportTypes::TCPWatcher
     } else {
-        ledger_iota::TransportTypes::TCP
+        iota_ledger::TransportTypes::TCP
     };
 
     println!("{} {}", is_simulator, non_interactive);
@@ -802,7 +802,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
     assert_eq!(DEFAULT_SEED, &seed[..]);
 
-    let ledger = ledger_iota::get_ledger_by_type(0x80000000, &transport_type, Some(watcher_cb))?;
+    let ledger = iota_ledger::get_ledger_by_type(0x80000000, &transport_type, Some(watcher_cb))?;
 
     let is_debug_app = ledger.is_debug_app();
     DEBUG_APP.store(is_debug_app, Ordering::Release);
