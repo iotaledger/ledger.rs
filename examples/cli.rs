@@ -1,9 +1,11 @@
-use std::io::prelude::*;
 use bech32::{self, ToBase32};
 use clap::{App, Arg};
 use rand::rngs::SmallRng;
 use rand::{RngCore, SeedableRng};
+use std::io::prelude::*;
 use std::sync::Mutex;
+
+use std::convert::TryInto;
 
 use bip39::Mnemonic;
 
@@ -21,12 +23,6 @@ use iota::message::payload::transaction::{
 };
 
 use bee_common::packable::Packable;
-
-use bee_signing_ext::Signer;
-use bee_signing_ext::{
-    binary::{ed25519, Ed25519PrivateKey},
-    Signature, Verifier,
-};
 
 use iota_ledger::ledger_apdu::{APDUAnswer, APDUCommand};
 
@@ -238,7 +234,7 @@ pub fn get_transaction_unlock_blocks(
             // If not, we should create a signature unlock block
             let private_key = get_key(&seed, account, recorder.bip32_index).unwrap();
 
-            let iota_priv_key = Ed25519PrivateKey::from_bytes(&private_key.key).unwrap();
+            let iota_priv_key = crypto::ed25519::SecretKey::from_le_bytes(private_key.key).unwrap();
 
             let public_key = private_key.public_key();
             let mut public_key_trunc = [0u8; 32];
@@ -246,12 +242,7 @@ pub fn get_transaction_unlock_blocks(
             public_key_trunc.clone_from_slice(&public_key[1..33]);
 
             // The block should sign the entire transaction essence part of the transaction payload
-            let signature = Box::new(
-                iota_priv_key
-                    .try_sign(&serialized_essence)
-                    .unwrap()
-                    .to_bytes(),
-            );
+            let signature = Box::new(iota_priv_key.sign(&serialized_essence).to_bytes());
             unlock_blocks.push(UnlockBlock::Signature(SignatureUnlock::Ed25519(
                 Ed25519Signature::new(public_key_trunc, signature),
             )));
@@ -626,7 +617,8 @@ pub fn random_essence(
             UnlockBlock::Signature(s) => {
                 match s {
                     SignatureUnlock::Ed25519(s) => {
-                        let sig = ed25519::Ed25519Signature::from_bytes(&s.signature()).unwrap();
+                        let sig: [u8; 64] = s.signature().try_into()?;
+                        let sig = crypto::ed25519::Signature::from_bytes(sig);
 
                         let pub_key_bytes = s.public_key();
 
@@ -639,11 +631,14 @@ pub fn random_essence(
 
                         assert_eq!(b32, *key_strings.get(t as usize).unwrap());
 
-                        let pub_key = ed25519::Ed25519PublicKey::from_bytes(pub_key_bytes).unwrap();
+                        let pub_key =
+                            crypto::ed25519::PublicKey::from_compressed_bytes(*pub_key_bytes)
+                                .unwrap();
 
-                        pub_key
-                            .verify(&essence_bytes, &sig)
-                            .expect("Error verifying signature");
+                        if !crypto::ed25519::verify(&pub_key, &sig, &essence_bytes) {
+                            panic!("error verifying signature");
+                        }
+
                         println!("found valid signature");
                     }
                     _ => {

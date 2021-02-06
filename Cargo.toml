@@ -24,13 +24,13 @@ lazy_static = "1.4.0"
 serial_test = "0.5.1"
 bee-common = { git = "https://github.com/iotaledger/bee.git", branch = "dev" }
 iota-core = { git = "https://github.com/iotaledger/iota.rs", branch = "dev" }
+iota-crypto = { git = "https://github.com/iotaledger/crypto.rs",  branch="dev", features=["ed25519"] }
 
 # CLI example
 log = "0.4.11"
 thiserror = "1.0.20"
 enum-iterator = "0.6.0"
 serde = { version = "1.0", features = ["derive"] }
-bee-signing-ext = { git = "https://github.com/wusyong/bee-p.git", branch = "sign-ext" , version = "^0.1.0-alpha" }
 tokio = { version = "1.0.0", features = ["macros"] }
 ed25519 = "1.0.3"
 trait-async = "0.1.24"
@@ -44,3 +44,5 @@ blake2 = "0.9.1"
 anyhow = "1.0"
 env_logger = "0.8.2"
 clap = "2.33.3"
+
+
