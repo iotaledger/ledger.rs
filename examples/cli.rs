@@ -786,7 +786,11 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         drop(writer);
         iota_ledger::TransportTypes::TCPWatcher
     } else {
-        iota_ledger::TransportTypes::TCP
+        if is_simulator {
+            iota_ledger::TransportTypes::TCP
+        } else {
+            iota_ledger::TransportTypes::NativeHID
+        }
     };
 
     println!("{} {}", is_simulator, non_interactive);
