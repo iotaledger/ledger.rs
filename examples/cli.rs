@@ -1,9 +1,11 @@
-use std::io::prelude::*;
 use bech32::{self, ToBase32};
 use clap::{App, Arg};
 use rand::rngs::SmallRng;
 use rand::{RngCore, SeedableRng};
+use std::io::prelude::*;
 use std::sync::Mutex;
+
+use std::convert::TryInto;
 
 use bip39::Mnemonic;
 
@@ -21,12 +23,6 @@ use iota::message::payload::transaction::{
 };
 
 use bee_common::packable::Packable;
-
-use bee_signing_ext::Signer;
-use bee_signing_ext::{
-    binary::{ed25519, Ed25519PrivateKey},
-    Signature, Verifier,
-};
 
 use iota_ledger::ledger_apdu::{APDUAnswer, APDUCommand};
 
@@ -94,7 +90,7 @@ const MAX_INPUT_RANGE: u32 = 100;
 const MAX_OUTPUT_RANGE: u32 = 100;
 const MAX_REMAINDER_RANGE: u32 = 100;
 
-const MAX_ACCOUNT_RANGE: u32 = 1;
+const MAX_ACCOUNT_RANGE: u32 = 4;
 
 #[macro_use]
 extern crate lazy_static;
@@ -208,6 +204,13 @@ pub fn get_transaction_unlock_blocks(
         .pack(&mut serialized_essence)
         .map_err(|_| anyhow::anyhow!("invalid parameter: inputs"))?;
 
+    let mut hasher = VarBlake2b::new(32).unwrap();
+    hasher.update(serialized_essence);
+    let mut hashed_essence: [u8; 32] = [0; 32];
+    hasher.finalize_variable(|res| {
+        hashed_essence[..32].clone_from_slice(&res[..32]);
+    });
+
     let seed = get_seed();
     let mut unlock_blocks = vec![];
     let mut signature_indexes = HashMap::<LedgerBIP32Index, usize>::new();
@@ -238,7 +241,7 @@ pub fn get_transaction_unlock_blocks(
             // If not, we should create a signature unlock block
             let private_key = get_key(&seed, account, recorder.bip32_index).unwrap();
 
-            let iota_priv_key = Ed25519PrivateKey::from_bytes(&private_key.key).unwrap();
+            let iota_priv_key = crypto::ed25519::SecretKey::from_le_bytes(private_key.key).unwrap();
 
             let public_key = private_key.public_key();
             let mut public_key_trunc = [0u8; 32];
@@ -246,12 +249,7 @@ pub fn get_transaction_unlock_blocks(
             public_key_trunc.clone_from_slice(&public_key[1..33]);
 
             // The block should sign the entire transaction essence part of the transaction payload
-            let signature = Box::new(
-                iota_priv_key
-                    .try_sign(&serialized_essence)
-                    .unwrap()
-                    .to_bytes(),
-            );
+            let signature = Box::new(iota_priv_key.sign(&hashed_essence).to_bytes());
             unlock_blocks.push(UnlockBlock::Signature(SignatureUnlock::Ed25519(
                 Ed25519Signature::new(public_key_trunc, signature),
             )));
@@ -269,7 +267,7 @@ pub fn get_transaction_unlock_blocks(
 }
 
 pub fn random_essence(
-    transport_type: &iota_ledger::TransportTypes,
+    ledger: &mut iota_ledger::LedgerHardwareWallet,
     seed: &[u8],
     rnd: &mut SmallRng,
     non_interactive: bool,
@@ -316,7 +314,7 @@ pub fn random_essence(
     println!("account: 0x{:08x}", account & !0x80000000);
 
     // get new ledger object (for testing)
-    let ledger = iota_ledger::get_ledger_by_type(account, transport_type, Some(watcher_cb))?;
+    ledger.set_account(account)?;
 
     let hrp: &str = if !ledger.is_debug_app() {
         "iota"
@@ -613,6 +611,14 @@ pub fn random_essence(
     println!("signature: {}", hex(&signature_bytes));
     println!();
 
+    let mut hasher = VarBlake2b::new(32).unwrap();
+    hasher.update(essence_bytes.clone());
+    let mut hashed_essence: [u8; 32] = [0; 32];
+    hasher.finalize_variable(|res| {
+        hashed_essence[..32].clone_from_slice(&res[..32]);
+    });
+
+
     // unpack all signatures to vector
     let mut readable = &mut &*signature_bytes;
     for t in 0..num_inputs {
@@ -626,7 +632,8 @@ pub fn random_essence(
             UnlockBlock::Signature(s) => {
                 match s {
                     SignatureUnlock::Ed25519(s) => {
-                        let sig = ed25519::Ed25519Signature::from_bytes(&s.signature()).unwrap();
+                        let sig: [u8; 64] = s.signature().try_into()?;
+                        let sig = crypto::ed25519::Signature::from_bytes(sig);
 
                         let pub_key_bytes = s.public_key();
 
@@ -639,11 +646,14 @@ pub fn random_essence(
 
                         assert_eq!(b32, *key_strings.get(t as usize).unwrap());
 
-                        let pub_key = ed25519::Ed25519PublicKey::from_bytes(pub_key_bytes).unwrap();
+                        let pub_key =
+                            crypto::ed25519::PublicKey::from_compressed_bytes(*pub_key_bytes)
+                                .unwrap();
 
-                        pub_key
-                            .verify(&essence_bytes, &sig)
-                            .expect("Error verifying signature");
+                        if !crypto::ed25519::verify(&pub_key, &sig, &hashed_essence) {
+                            panic!("error verifying signature");
+                        }
+
                         println!("found valid signature");
                     }
                     _ => {
@@ -759,11 +769,23 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                 .help("dump memory after tests")
                 .takes_value(false),
         )
+        .arg(
+            Arg::with_name("limit")
+                .short("l")
+                .long("limit")
+                .help("maximum number of tests done")
+                .takes_value(true),
+        )
         .get_matches();
 
     let is_simulator = matches.is_present("is-simulator");
 
     let non_interactive = matches.is_present("non-interactive");
+
+    let limit = match matches.is_present("limit") {
+        true => matches.value_of("limit").unwrap().parse::<u32>().unwrap(),
+        false => 0,
+    };
 
     let transport_type = if matches.is_present("recorder") {
         if !is_simulator {
@@ -791,7 +813,11 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         drop(writer);
         iota_ledger::TransportTypes::TCPWatcher
     } else {
-        iota_ledger::TransportTypes::TCP
+        if is_simulator {
+            iota_ledger::TransportTypes::TCP
+        } else {
+            iota_ledger::TransportTypes::NativeHID
+        }
     };
 
     println!("{} {}", is_simulator, non_interactive);
@@ -802,7 +828,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
     assert_eq!(DEFAULT_SEED, &seed[..]);
 
-    let ledger = iota_ledger::get_ledger_by_type(0x80000000, &transport_type, Some(watcher_cb))?;
+    let mut ledger = iota_ledger::get_ledger_by_type(0x80000000, &transport_type, Some(watcher_cb))?;
 
     let is_debug_app = ledger.is_debug_app();
     DEBUG_APP.store(is_debug_app, Ordering::Release);
@@ -826,12 +852,13 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
     let mut run: u32 = 0;
     for _ in 0..10000 {
-        let was_new = random_essence(&transport_type, &seed, &mut rnd, non_interactive)?;
+        let was_new = random_essence(&mut ledger, &seed, &mut rnd, non_interactive)?;
         if was_new {
             run += 1;
             println!("\nrun {} successful\n", run);
-            if run == 9 {
-                println!("break");
+            if limit == run {
+                println!("limit reached.");
+                break;
             }
         }
     }
