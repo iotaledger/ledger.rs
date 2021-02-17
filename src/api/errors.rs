@@ -41,9 +41,6 @@ pub enum APIError {
     #[error("Essence too large")]
     EssenceTooLarge,
 
-    #[error("App version too old")]
-    AppTooOld,
-    
     #[error("unknown")]
     Unknown,
 }

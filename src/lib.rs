@@ -23,8 +23,6 @@ use trait_async::trait_async;
 
 pub mod api;
 
-const MINIMUM_APP_VERSION: u32 = 6002;
-
 #[trait_async]
 impl Exchange for Transport {
     async fn exchange(
@@ -181,16 +179,6 @@ impl LedgerHardwareWallet {
         crate::api::reset::exec(&transport)?;
 
         let res = crate::api::get_app_config::exec(&transport)?;
-
-        let version = res.app_version_major as u32 * 1000000
-            + res.app_version_minor as u32 * 1000
-            + res.app_version_patch as u32;
-
-        // signature changed from signing the essence to signing the hash of the essence (0.6.1 to 0.6.2)
-        if version < MINIMUM_APP_VERSION {
-            // temporary for not needing to change wallet.rs
-            return Err(APIError::AppTooOld);
-        }
 
         let device_type = match res.device {
             0 => LedgerDeviceTypes::LedgerNanoS,
