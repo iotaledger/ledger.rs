@@ -350,7 +350,7 @@ pub fn random_essence(
             .unwrap();
 
         let mut addr_bytes_with_type = [0u8; 33];
-        addr_bytes_with_type[0] = 1;
+        addr_bytes_with_type[0] = 0; // ed25519
         addr_bytes_with_type[1..33].clone_from_slice(&input_addr_bytes[..]);
         let b32 = bech32::encode(hrp, addr_bytes_with_type.to_base32()).unwrap();
 
@@ -401,14 +401,12 @@ pub fn random_essence(
         essence_builder = essence_builder.add_output(output.clone());
 
         let mut addr_bytes_with_type = [0u8; 33];
-        addr_bytes_with_type[0] = 1;
+        addr_bytes_with_type[0] = 0; // ED25519
         addr_bytes_with_type[1..33].clone_from_slice(&output_addr_bytes[..]);
         let b32 = bech32::encode(hrp, addr_bytes_with_type.to_base32()).unwrap();
 
         let cmp_addr = get_addr(&seed, account, output_bip32_index).unwrap();
-        for i in 0..32 {
-            addr_bytes_with_type[i + 1] = *cmp_addr.get(i).unwrap();
-        }
+        addr_bytes_with_type[1..33].clone_from_slice(&cmp_addr[..]);
         let cmp_b32 = bech32::encode(hrp, addr_bytes_with_type.to_base32()).unwrap();
 
         output_recorder.push(OutputIndexRecorder {
@@ -461,8 +459,8 @@ pub fn random_essence(
         essence_builder = essence_builder.add_output(remainder.clone());
 
         let mut addr_bytes_with_type = [0u8; 33];
-        addr_bytes_with_type[0] = 1;
-        addr_bytes_with_type[1..(32 + 1)].clone_from_slice(&remainder_addr_bytes[..32]);
+        addr_bytes_with_type[0] = 0; // ed25519
+        addr_bytes_with_type[1..33].clone_from_slice(&remainder_addr_bytes[..32]);
 
         let b32 = bech32::encode(hrp, addr_bytes_with_type.to_base32()).unwrap();
 
@@ -475,9 +473,7 @@ pub fn random_essence(
         });
 
         let cmp_addr = get_addr(&seed, account, remainder_bip32).unwrap();
-        for i in 0..32 {
-            addr_bytes_with_type[i + 1] = *cmp_addr.get(i).unwrap();
-        }
+        addr_bytes_with_type[1..33].clone_from_slice(&cmp_addr[..]);
         let cmp_b32 = bech32::encode(hrp, addr_bytes_with_type.to_base32()).unwrap();
 
         /*
@@ -639,7 +635,7 @@ pub fn random_essence(
 
                         let addr_bytes = get_addr_from_pubkey(*pub_key_bytes);
                         let mut addr_bytes_with_type = [0u8; 33];
-                        addr_bytes_with_type[0] = 1;
+                        addr_bytes_with_type[0] = 0; // ed25519
                         addr_bytes_with_type[1..33].clone_from_slice(&addr_bytes[..]);
                         let b32 = bech32::encode(hrp, addr_bytes_with_type.to_base32()).unwrap();
                         //                        println!("{} vs {}", b32, key_strings.get(t as usize).unwrap());
