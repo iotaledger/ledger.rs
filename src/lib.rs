@@ -8,7 +8,7 @@ use ledger_transport::{errors::TransportError, Exchange};
 
 pub mod ledger_apdu {
     pub use ledger_apdu::{APDUAnswer, APDUCommand};
-}
+} 
 
 use ledger::TransportNativeHID;
 use ledger_tcp::TransportTCP;
@@ -517,9 +517,9 @@ impl LedgerHardwareWallet {
 
 #[cfg(test)]
 mod tests {
-    use iota::message::payload::transaction::{
+    use bee_message::payload::transaction::{
         Address, Ed25519Address, Input, Output, SignatureLockedSingleOutput, TransactionId,
-        TransactionPayloadEssence, UTXOInput,
+        Essence, RegularEssence, RegularEssenceBuilder, UTXOInput,
     };
 
     use bee_common::packable::Packable;
@@ -640,7 +640,7 @@ mod tests {
 
         // add to essence
         // build essence and add input and output
-        let essence_builder = TransactionPayloadEssence::builder()
+        let essence_builder = RegularEssenceBuilder::new()
             .add_input(genesis_input)
             .add_output(output)
             .add_output(remainder);
@@ -650,7 +650,8 @@ mod tests {
 
         // pack the essence to bytes
         let mut essence_bytes: Vec<u8> = Vec::new();
-        essence
+
+        Essence::from(essence.clone())
             .pack(&mut essence_bytes)
             .expect("error packing data");
 

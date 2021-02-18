@@ -16,9 +16,9 @@ use blake2::VarBlake2b;
 
 use iota_ledger::LedgerBIP32Index;
 
-use iota::message::payload::transaction::{
+use bee_message::payload::transaction::{
     Address, Ed25519Address, Ed25519Signature, Input, Output, ReferenceUnlock,
-    SignatureLockedSingleOutput, SignatureUnlock, TransactionId, TransactionPayloadEssence,
+    SignatureLockedSingleOutput, SignatureUnlock, TransactionId, Essence, RegularEssence, RegularEssenceBuilder,
     UTXOInput, UnlockBlock,
 };
 
@@ -196,11 +196,11 @@ pub struct OutputIndexRecorder {
 /// Gets the unlock blocks for a transaction.
 pub fn get_transaction_unlock_blocks(
     account: u32,
-    essence: &TransactionPayloadEssence,
+    essence: &RegularEssence,
     address_index_recorders: &mut [AddressIndexRecorder],
 ) -> Result<Vec<UnlockBlock>> {
     let mut serialized_essence = Vec::new();
-    essence
+    Essence::from(essence.clone())
         .pack(&mut serialized_essence)
         .map_err(|_| anyhow::anyhow!("invalid parameter: inputs"))?;
 
@@ -300,7 +300,7 @@ pub fn random_essence(
 
     // add to essence
     // build essence and add input and output
-    let mut essence_builder = TransactionPayloadEssence::builder();
+    let mut essence_builder = RegularEssenceBuilder::new();
 
     #[allow(clippy::modulo_one)]
     let account = (rnd.next_u32() % MAX_ACCOUNT_RANGE) | HARDENED;
@@ -504,7 +504,7 @@ pub fn random_essence(
 
     // pack the essence to bytes
     let mut essence_bytes: Vec<u8> = Vec::new();
-    essence
+    Essence::from(essence.clone())
         .pack(&mut essence_bytes)
         .expect("error packing data");
 

@@ -23,7 +23,8 @@ lazy_static = "1.4.0"
 # tests
 serial_test = "0.5.1"
 bee-common = { git = "https://github.com/iotaledger/bee.git", branch = "dev" }
-iota-core = { git = "https://github.com/iotaledger/iota.rs", branch = "dev" }
+bee-message = { git = "https://github.com/iotaledger/bee.git", branch = "chrysalis-pt-2" }
+#iota-core = { git = "https://github.com/iotaledger/iota.rs", branch = "dev" }
 iota-crypto = { git = "https://github.com/iotaledger/crypto.rs",  branch="dev", features=["ed25519"] }
 
 # CLI example
