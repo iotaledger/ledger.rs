@@ -90,7 +90,7 @@ const MAX_INPUT_RANGE: u32 = 100;
 const MAX_OUTPUT_RANGE: u32 = 100;
 const MAX_REMAINDER_RANGE: u32 = 100;
 
-const MAX_ACCOUNT_RANGE: u32 = 1;
+const MAX_ACCOUNT_RANGE: u32 = 4;
 
 #[macro_use]
 extern crate lazy_static;
@@ -204,6 +204,13 @@ pub fn get_transaction_unlock_blocks(
         .pack(&mut serialized_essence)
         .map_err(|_| anyhow::anyhow!("invalid parameter: inputs"))?;
 
+    let mut hasher = VarBlake2b::new(32).unwrap();
+    hasher.update(serialized_essence);
+    let mut hashed_essence: [u8; 32] = [0; 32];
+    hasher.finalize_variable(|res| {
+        hashed_essence[..32].clone_from_slice(&res[..32]);
+    });
+
     let seed = get_seed();
     let mut unlock_blocks = vec![];
     let mut signature_indexes = HashMap::<LedgerBIP32Index, usize>::new();
@@ -242,7 +249,7 @@ pub fn get_transaction_unlock_blocks(
             public_key_trunc.clone_from_slice(&public_key[1..33]);
 
             // The block should sign the entire transaction essence part of the transaction payload
-            let signature = Box::new(iota_priv_key.sign(&serialized_essence).to_bytes());
+            let signature = Box::new(iota_priv_key.sign(&hashed_essence).to_bytes());
             unlock_blocks.push(UnlockBlock::Signature(SignatureUnlock::Ed25519(
                 Ed25519Signature::new(public_key_trunc, signature),
             )));
@@ -260,7 +267,7 @@ pub fn get_transaction_unlock_blocks(
 }
 
 pub fn random_essence(
-    transport_type: &iota_ledger::TransportTypes,
+    ledger: &mut iota_ledger::LedgerHardwareWallet,
     seed: &[u8],
     rnd: &mut SmallRng,
     non_interactive: bool,
@@ -307,7 +314,7 @@ pub fn random_essence(
     println!("account: 0x{:08x}", account & !0x80000000);
 
     // get new ledger object (for testing)
-    let ledger = iota_ledger::get_ledger_by_type(account, transport_type, Some(watcher_cb))?;
+    ledger.set_account(account)?;
 
     let hrp: &str = if !ledger.is_debug_app() {
         "iota"
@@ -343,7 +350,7 @@ pub fn random_essence(
             .unwrap();
 
         let mut addr_bytes_with_type = [0u8; 33];
-        addr_bytes_with_type[0] = 1;
+        addr_bytes_with_type[0] = 0; // ed25519
         addr_bytes_with_type[1..33].clone_from_slice(&input_addr_bytes[..]);
         let b32 = bech32::encode(hrp, addr_bytes_with_type.to_base32()).unwrap();
 
@@ -394,14 +401,12 @@ pub fn random_essence(
         essence_builder = essence_builder.add_output(output.clone());
 
         let mut addr_bytes_with_type = [0u8; 33];
-        addr_bytes_with_type[0] = 1;
+        addr_bytes_with_type[0] = 0; // ED25519
         addr_bytes_with_type[1..33].clone_from_slice(&output_addr_bytes[..]);
         let b32 = bech32::encode(hrp, addr_bytes_with_type.to_base32()).unwrap();
 
         let cmp_addr = get_addr(&seed, account, output_bip32_index).unwrap();
-        for i in 0..32 {
-            addr_bytes_with_type[i + 1] = *cmp_addr.get(i).unwrap();
-        }
+        addr_bytes_with_type[1..33].clone_from_slice(&cmp_addr[..]);
         let cmp_b32 = bech32::encode(hrp, addr_bytes_with_type.to_base32()).unwrap();
 
         output_recorder.push(OutputIndexRecorder {
@@ -454,8 +459,8 @@ pub fn random_essence(
         essence_builder = essence_builder.add_output(remainder.clone());
 
         let mut addr_bytes_with_type = [0u8; 33];
-        addr_bytes_with_type[0] = 1;
-        addr_bytes_with_type[1..(32 + 1)].clone_from_slice(&remainder_addr_bytes[..32]);
+        addr_bytes_with_type[0] = 0; // ed25519
+        addr_bytes_with_type[1..33].clone_from_slice(&remainder_addr_bytes[..32]);
 
         let b32 = bech32::encode(hrp, addr_bytes_with_type.to_base32()).unwrap();
 
@@ -468,9 +473,7 @@ pub fn random_essence(
         });
 
         let cmp_addr = get_addr(&seed, account, remainder_bip32).unwrap();
-        for i in 0..32 {
-            addr_bytes_with_type[i + 1] = *cmp_addr.get(i).unwrap();
-        }
+        addr_bytes_with_type[1..33].clone_from_slice(&cmp_addr[..]);
         let cmp_b32 = bech32::encode(hrp, addr_bytes_with_type.to_base32()).unwrap();
 
         /*
@@ -604,6 +607,14 @@ pub fn random_essence(
     println!("signature: {}", hex(&signature_bytes));
     println!();
 
+    let mut hasher = VarBlake2b::new(32).unwrap();
+    hasher.update(essence_bytes.clone());
+    let mut hashed_essence: [u8; 32] = [0; 32];
+    hasher.finalize_variable(|res| {
+        hashed_essence[..32].clone_from_slice(&res[..32]);
+    });
+
+
     // unpack all signatures to vector
     let mut readable = &mut &*signature_bytes;
     for t in 0..num_inputs {
@@ -624,7 +635,7 @@ pub fn random_essence(
 
                         let addr_bytes = get_addr_from_pubkey(*pub_key_bytes);
                         let mut addr_bytes_with_type = [0u8; 33];
-                        addr_bytes_with_type[0] = 1;
+                        addr_bytes_with_type[0] = 0; // ed25519
                         addr_bytes_with_type[1..33].clone_from_slice(&addr_bytes[..]);
                         let b32 = bech32::encode(hrp, addr_bytes_with_type.to_base32()).unwrap();
                         //                        println!("{} vs {}", b32, key_strings.get(t as usize).unwrap());
@@ -635,7 +646,7 @@ pub fn random_essence(
                             crypto::ed25519::PublicKey::from_compressed_bytes(*pub_key_bytes)
                                 .unwrap();
 
-                        if !crypto::ed25519::verify(&pub_key, &sig, &essence_bytes) {
+                        if !crypto::ed25519::verify(&pub_key, &sig, &hashed_essence) {
                             panic!("error verifying signature");
                         }
 
@@ -754,11 +765,23 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                 .help("dump memory after tests")
                 .takes_value(false),
         )
+        .arg(
+            Arg::with_name("limit")
+                .short("l")
+                .long("limit")
+                .help("maximum number of tests done")
+                .takes_value(true),
+        )
         .get_matches();
 
     let is_simulator = matches.is_present("is-simulator");
 
     let non_interactive = matches.is_present("non-interactive");
+
+    let limit = match matches.is_present("limit") {
+        true => matches.value_of("limit").unwrap().parse::<u32>().unwrap(),
+        false => 0,
+    };
 
     let transport_type = if matches.is_present("recorder") {
         if !is_simulator {
@@ -801,7 +824,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
     assert_eq!(DEFAULT_SEED, &seed[..]);
 
-    let ledger = iota_ledger::get_ledger_by_type(0x80000000, &transport_type, Some(watcher_cb))?;
+    let mut ledger = iota_ledger::get_ledger_by_type(0x80000000, &transport_type, Some(watcher_cb))?;
 
     let is_debug_app = ledger.is_debug_app();
     DEBUG_APP.store(is_debug_app, Ordering::Release);
@@ -825,12 +848,13 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
     let mut run: u32 = 0;
     for _ in 0..10000 {
-        let was_new = random_essence(&transport_type, &seed, &mut rnd, non_interactive)?;
+        let was_new = random_essence(&mut ledger, &seed, &mut rnd, non_interactive)?;
         if was_new {
             run += 1;
             println!("\nrun {} successful\n", run);
-            if run == 9 {
-                println!("break");
+            if limit == run {
+                println!("limit reached.");
+                break;
             }
         }
     }
