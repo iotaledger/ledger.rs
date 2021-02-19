@@ -34,7 +34,7 @@ addr_bytes_with_type[0] = 0; // ed25519 address_type
 addr_bytes_with_type[1..33].clone_from_slice(&input_addr_bytes[..]);
 
 // convert the 33 byte address into a bech32 string
-let bech32_address = bech32::encode(hrp, 
+let bech32_address = bech32::encode("iota", 
     addr_bytes_with_type.to_base32()).unwrap();
 
 // output the address
