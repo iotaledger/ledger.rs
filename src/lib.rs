@@ -529,11 +529,15 @@ impl LedgerHardwareWallet {
 
 #[cfg(test)]
 mod tests {
+    use bee_message::input::{Input, UTXOInput};
+    use bee_message::output::{Output, SignatureLockedSingleOutput};
+    use bee_message::unlock::{Ed25519Signature, ReferenceUnlock, UnlockBlock, SignatureUnlock};
+    use bee_message::address::{Address, Ed25519Address};
+    
     use bee_message::payload::transaction::{
-        Address, Ed25519Address, Input, Output, SignatureLockedSingleOutput, TransactionId,
-        Essence, RegularEssence, RegularEssenceBuilder, UTXOInput,
+        TransactionId, Essence, RegularEssence, RegularEssenceBuilder,
     };
-
+    
     use bee_common::packable::Packable;
 
     use std::error::Error;
@@ -541,6 +545,27 @@ mod tests {
     use serial_test::serial;
 
     const ACCOUNT: u32 = 0x80000000;
+
+    #[derive(Debug, Clone)]
+    pub struct InputIndexRecorder {
+        /// the input
+        pub input: Input,
+        pub bech32: String,
+        /// address index
+        pub address_index: usize,
+    
+        pub bip32_index: crate::LedgerBIP32Index,
+    }
+    
+    #[derive(Debug, Clone)]
+    pub struct OutputIndexRecorder {
+        pub output: Output,
+        pub bech32: String,
+        pub bip32_index: crate::LedgerBIP32Index,
+        pub value: u64,
+        pub is_remainder: bool,
+    }
+    
 
     fn hex(bytes: &[u8]) -> String {
         let mut ret = String::new();
@@ -650,12 +675,23 @@ mod tests {
             "4d8e2ef5a76baef9f43bb86e74879d1ddbc9cb7cbbde7519d1b53f1b6b030f9c"
         );
 
+        let mut outputs = Vec::new();
+        outputs.push(output.clone());
+        outputs.push(remainder.clone());
+
+        // sort outputs
+        outputs.sort_by(|a, b| a.cmp(&b));
+
         // add to essence
         // build essence and add input and output
-        let essence_builder = RegularEssenceBuilder::new()
-            .add_input(genesis_input)
-            .add_output(output)
-            .add_output(remainder);
+        let mut essence_builder = RegularEssenceBuilder::new()
+            .add_input(genesis_input);
+
+
+        // add sorted outputs
+        for output in outputs {
+            essence_builder = essence_builder.add_output(output.clone());
+        }
 
         // finish essence
         let essence = essence_builder.finish().unwrap();
@@ -669,7 +705,7 @@ mod tests {
 
         println!("essence: {}", hex(&essence_bytes));
 
-        assert_eq!(hex(&essence_bytes), "0001000000000000000000000000000000000000000000000000000000000000000000000000020000014d8e2ef5a76baef9f43bb86e74879d1ddbc9cb7cbbde7519d1b53f1b6b030f9cc1939297f7df0900000165d7a7d80b9833ff5792038e3fb15f9906c4250f9fe3bed2d15f9ec60cec4a0300ca9a3b0000000000000000");
+        assert_eq!(hex(&essence_bytes), "0001000000000000000000000000000000000000000000000000000000000000000000000000020000004d8e2ef5a76baef9f43bb86e74879d1ddbc9cb7cbbde7519d1b53f1b6b030f9cc1939297f7df0900000065d7a7d80b9833ff5792038e3fb15f9906c4250f9fe3bed2d15f9ec60cec4a0300ca9a3b0000000000000000");
 
         // TODO: perhaps let it do the wallet app ...
         // after finish, search the index of the remainder output
@@ -729,7 +765,7 @@ mod tests {
         let signature_bytes = ledger.sign(num_inputs).expect("error signing");
         println!("signature: {}", hex(&signature_bytes));
 
-        assert_eq!(hex(&signature_bytes), "0001f9e5d9f4437cf656ef76da8fa17d38f66569ec61cca09b28d7210d0ed18b59f0ca69bc6fbcfc968c2caec9e65a41f40982aef506c0c145b905870155704b21f472dafaf2a31fc6bc5db21d1de526f7b3c42c17bdb1b107edf65713f1205a9306");
+        assert_eq!(hex(&signature_bytes), "0000f9e5d9f4437cf656ef76da8fa17d38f66569ec61cca09b28d7210d0ed18b59f0d69678261469dd3b4862fb144cafa318134e1c6624912b41b170c369ff83f6d08a3ff0b04563413555f4ed8f1a0729cf05055385acaa48a9f7be71b3909f7506");
 
         Ok(())
     }

@@ -16,15 +16,20 @@ use blake2::VarBlake2b;
 
 use iota_ledger::LedgerBIP32Index;
 
+use bee_message::input::{Input, UTXOInput};
+use bee_message::output::{Output, SignatureLockedSingleOutput};
+use bee_message::unlock::{Ed25519Signature, ReferenceUnlock, UnlockBlock, SignatureUnlock};
+use bee_message::address::{Address, Ed25519Address};
+
 use bee_message::payload::transaction::{
-    Address, Ed25519Address, Ed25519Signature, Input, Output, ReferenceUnlock,
-    SignatureLockedSingleOutput, SignatureUnlock, TransactionId, Essence, RegularEssence, RegularEssenceBuilder,
-    UTXOInput, UnlockBlock,
+    TransactionId, Essence, RegularEssence, RegularEssenceBuilder,
 };
 
 use bee_common::packable::Packable;
 
 use iota_ledger::ledger_apdu::{APDUAnswer, APDUCommand};
+
+use crypto::signatures::ed25519;
 
 use std::error::Error;
 
@@ -173,8 +178,8 @@ pub fn get_addr(
 }
 
 /// A record matching an Input with its address.
-#[derive(Debug)]
-pub struct AddressIndexRecorder {
+#[derive(Debug, Clone)]
+pub struct InputIndexRecorder {
     /// the input
     pub input: Input,
     pub bech32: String,
@@ -197,7 +202,7 @@ pub struct OutputIndexRecorder {
 pub fn get_transaction_unlock_blocks(
     account: u32,
     essence: &RegularEssence,
-    address_index_recorders: &mut [AddressIndexRecorder],
+    address_index_recorders: &mut [InputIndexRecorder],
 ) -> Result<Vec<UnlockBlock>> {
     let mut serialized_essence = Vec::new();
     Essence::from(essence.clone())
@@ -241,7 +246,7 @@ pub fn get_transaction_unlock_blocks(
             // If not, we should create a signature unlock block
             let private_key = get_key(&seed, account, recorder.bip32_index).unwrap();
 
-            let iota_priv_key = crypto::ed25519::SecretKey::from_le_bytes(private_key.key).unwrap();
+            let iota_priv_key = ed25519::SecretKey::from_le_bytes(private_key.key).unwrap();
 
             let public_key = private_key.public_key();
             let mut public_key_trunc = [0u8; 32];
@@ -322,7 +327,7 @@ pub fn random_essence(
         "atoi"
     };
 
-    let mut address_index_recorders: Vec<AddressIndexRecorder> = Vec::new();
+    let mut address_index_recorders: Vec<InputIndexRecorder> = Vec::new();
 
     let mut key_indices: Vec<LedgerBIP32Index> = Vec::new();
     let mut key_strings: Vec<String> = Vec::new();
@@ -359,9 +364,9 @@ pub fn random_essence(
         key_indices.push(input_bip32_index);
         key_strings.push(b32.clone());
 
-        essence_builder = essence_builder.add_input(input.clone());
+        
 
-        address_index_recorders.push(AddressIndexRecorder {
+        address_index_recorders.push(InputIndexRecorder {
             address_index: i as usize,
             bip32_index: input_bip32_index,
             input,
@@ -398,7 +403,7 @@ pub fn random_essence(
             value_out,
         )?);
 
-        essence_builder = essence_builder.add_output(output.clone());
+        //essence_builder = essence_builder.add_output(output.clone());
 
         let mut addr_bytes_with_type = [0u8; 33];
         addr_bytes_with_type[0] = 0; // ED25519
@@ -456,7 +461,7 @@ pub fn random_essence(
             Address::Ed25519(Ed25519Address::new(remainder_addr_bytes)),
             value_remainder,
         )?);
-        essence_builder = essence_builder.add_output(remainder.clone());
+        //essence_builder = essence_builder.add_output(remainder.clone());
 
         let mut addr_bytes_with_type = [0u8; 33];
         addr_bytes_with_type[0] = 0; // ed25519
@@ -488,9 +493,25 @@ pub fn random_essence(
         */
         assert_eq!(b32, cmp_b32);
     }
-
+ 
     output_recorder.sort_by(|a, b| a.output.cmp(&b.output));
+    address_index_recorders.sort_by(|a, b| a.input.cmp(&b.input));
 
+
+    // sort inputs    
+    for recorder in address_index_recorders.clone() {
+        essence_builder = essence_builder.add_input(recorder.input.clone());
+    }
+
+    // sort outputs
+    for recorder in output_recorder.clone() {
+        essence_builder = essence_builder.add_output(recorder.output.clone());  
+    }
+
+    // finish essence
+    let essence = essence_builder.finish().unwrap();
+
+    // swap the remainder - mainly for displaying the remainder as last output later
     if has_remainder {
         let mut or_rem_idx = 0;
         let l = output_recorder.len();
@@ -502,8 +523,6 @@ pub fn random_essence(
         output_recorder.swap(or_rem_idx, l - 1);
     }
 
-    // finish essence
-    let essence = essence_builder.finish().unwrap();
 
     // pack the essence to bytes
     let mut essence_bytes: Vec<u8> = Vec::new();
@@ -629,7 +648,7 @@ pub fn random_essence(
                 match s {
                     SignatureUnlock::Ed25519(s) => {
                         let sig: [u8; 64] = s.signature().try_into()?;
-                        let sig = crypto::ed25519::Signature::from_bytes(sig);
+                        let sig = ed25519::Signature::from_bytes(sig);
 
                         let pub_key_bytes = s.public_key();
 
@@ -643,10 +662,10 @@ pub fn random_essence(
                         assert_eq!(b32, *key_strings.get(t as usize).unwrap());
 
                         let pub_key =
-                            crypto::ed25519::PublicKey::from_compressed_bytes(*pub_key_bytes)
+                            ed25519::PublicKey::from_compressed_bytes(*pub_key_bytes)
                                 .unwrap();
 
-                        if !crypto::ed25519::verify(&pub_key, &sig, &hashed_essence) {
+                        if !pub_key.verify(&sig, &hashed_essence) {
                             panic!("error verifying signature");
                         }
 
