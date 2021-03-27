@@ -88,7 +88,7 @@ const DEFAULT_SEED: [u8; 64] = [
 ];
 const DEFAULT_KEY_DEBUG: &str = "171167b16cb8dcfa0b4f46e9bbb196cfbb2ee9b5ba7d9f19786ac6974ece46d1";
 
-const DEFAULT_KEY: &str = "todo";
+const DEFAULT_KEY: &str = "f14f5bc7f78179df26fed411de31e6e1344f272597972bc975cedff700819d95";
 
 // output-range to test address pooling
 const MAX_INPUT_RANGE: u32 = 100;
@@ -125,7 +125,7 @@ const MAX_SUM_INPUTS_OUTPUTS: u16 = 16;
 
 use anyhow::Result;
 
-pub fn get_seed() -> Vec<u8> {
+pub fn get_seed() -> [u8;64] {
     // create a new randomly generated mnemonic phrase
     let mnemonic = match Mnemonic::parse(DEFAULT_WORDS) {
         Ok(b) => b,
@@ -431,7 +431,9 @@ pub fn random_essence(
     let mut remainder_addr_bytes = [0u8; 32];
     //    let mut remainder_recorer : Vec<OutputIndexRecorder> = Vec::new();
     if has_remainder {
-        ledger.set_non_interactive_mode(non_interactive)?;
+        if ledger.is_debug_app() {
+            ledger.set_non_interactive_mode(non_interactive)?;
+        }
         let mut bip32 = None;
         loop {
             if bip32.is_some()
@@ -617,7 +619,9 @@ pub fn random_essence(
         .expect("error prepare signing");
 
     // show essence to user
-    ledger.set_non_interactive_mode(non_interactive)?;
+    if ledger.is_debug_app() {
+        ledger.set_non_interactive_mode(non_interactive)?;
+    }
     ledger.user_confirm().expect("error user confirm");
 
     println!();
