@@ -4,7 +4,7 @@ use rand::rngs::SmallRng;
 use rand::{RngCore, SeedableRng};
 use std::io::prelude::*;
 use std::sync::Mutex;
-
+ 
 use std::convert::TryInto;
 
 use bip39::Mnemonic;
@@ -16,9 +16,10 @@ use blake2::VarBlake2b;
 
 use iota_ledger::LedgerBIP32Index;
 
-use bee_message::input::{Input, UTXOInput};
+use bee_message::input::{Input, UtxoInput};
 use bee_message::output::{Output, SignatureLockedSingleOutput};
-use bee_message::unlock::{Ed25519Signature, ReferenceUnlock, UnlockBlock, SignatureUnlock};
+use bee_message::unlock::{ReferenceUnlock, UnlockBlock};
+use bee_message::signature::{Ed25519Signature, SignatureUnlock};
 use bee_message::address::{Address, Ed25519Address};
 
 use bee_message::payload::transaction::{
@@ -256,7 +257,7 @@ pub fn get_transaction_unlock_blocks(
             // The block should sign the entire transaction essence part of the transaction payload
             let signature = Box::new(iota_priv_key.sign(&hashed_essence).to_bytes());
             unlock_blocks.push(UnlockBlock::Signature(SignatureUnlock::Ed25519(
-                Ed25519Signature::new(public_key_trunc, signature),
+                Ed25519Signature::new(public_key_trunc, *signature),
             )));
             signature_indexes.insert(recorder.bip32_index, current_block_index);
             log::info!(
@@ -336,8 +337,8 @@ pub fn random_essence(
         let mut txid = [0u8; 32];
         rnd.fill_bytes(&mut txid);
 
-        let input = Input::UTXO(
-            UTXOInput::new(TransactionId::from(txid), rnd.next_u32() as u16 % 127).unwrap(),
+        let input = Input::Utxo(
+            UtxoInput::new(TransactionId::from(txid), rnd.next_u32() as u16 % 127).unwrap(),
         );
 
         let is_change = rnd.next_u32() & 0x1 == 0x1;
