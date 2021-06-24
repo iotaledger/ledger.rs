@@ -18,3 +18,7 @@ pub(crate) mod sign;
 pub(crate) mod sign_single;
 pub(crate) mod user_confirm;
 pub(crate) mod write_data_block;
+
+pub(crate) mod app_exit;
+pub(crate) mod app_get_name;
+pub(crate) mod app_open;

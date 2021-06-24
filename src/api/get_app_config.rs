@@ -1,5 +1,3 @@
-// avoid dependencies to bee in this low-level lib
-//use bee_common_ext::packable::{Error as PackableError, Packable, Read, Write};
 use crate::api::packable::{Error as PackableError, Packable, Read, Write};
 
 use ledger_apdu::APDUCommand;

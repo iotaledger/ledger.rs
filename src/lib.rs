@@ -110,12 +110,14 @@ impl TransportTCPWatcher {
 }
 
 #[derive(Copy, Clone)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum TransportTypes {
     TCP,
     NativeHID,
     TCPWatcher,
 }
 
+#[allow(clippy::upper_case_acronyms)]
 pub(crate) enum Transport {
     TCP(TransportTCP),
     NativeHID(TransportNativeHID),
@@ -149,6 +151,29 @@ pub fn get_ledger_by_type(
     Ok(Box::new(ledger))
 }
 
+/// Get currently opened app
+/// If "BOLOS" is returned, the dashboard is open
+pub fn get_opened_app(transport_type: &TransportTypes) -> Result<(String, String), APIError> {
+    let transport = crate::LedgerHardwareWallet::create_transport(transport_type, None)?;
+
+    let app = crate::api::app_get_name::exec(&transport)?;
+    Ok((app.app, app.version))
+}
+
+/// Open app on the nano s/x
+/// Only works if dashboard is open
+pub fn open_app(transport_type: &TransportTypes, app: String) -> Result<(), APIError> {
+    let transport = crate::LedgerHardwareWallet::create_transport(transport_type, None)?;
+    crate::api::app_open::exec(&transport, app)
+}
+
+/// Close current opened app on the nano s/x
+/// Only works if an app is open
+pub fn exit_app(transport_type: &TransportTypes) -> Result<(), APIError> {
+    let transport = crate::LedgerHardwareWallet::create_transport(transport_type, None)?;
+    crate::api::app_exit::exec(&transport)
+}
+
 /// Get Ledger
 /// If is_simulator is true, you will get a TCP transfer for use with Speculos
 /// If it's false, you will get a native USB HID transfer for real devices
@@ -164,9 +189,11 @@ pub fn get_ledger(
 }
 
 impl LedgerHardwareWallet {
-    // creates object but doesn't connect it
-    // initialize with dummy-device
-    fn new(transport_type: &TransportTypes, callback: Option<Callback>) -> Result<Self, APIError> {
+    // only create transport without IOTA specific calls
+    fn create_transport(
+        transport_type: &TransportTypes,
+        callback: Option<Callback>,
+    ) -> Result<Transport, APIError> {
         let transport = match transport_type {
             TransportTypes::TCP => Transport::TCP(TransportTCP::new("127.0.0.1", 9999)),
             TransportTypes::NativeHID => Transport::NativeHID(
@@ -176,6 +203,13 @@ impl LedgerHardwareWallet {
                 Transport::TCPWatcher(TransportTCPWatcher::new(callback, "127.0.0.1", 9999))
             }
         };
+        Ok(transport)
+    }
+
+    // creates object but doesn't connect it
+    // initialize with dummy-device
+    fn new(transport_type: &TransportTypes, callback: Option<Callback>) -> Result<Self, APIError> {
+        let transport = LedgerHardwareWallet::create_transport(transport_type, callback)?;
 
         // reset api
         crate::api::reset::exec(&transport)?;
@@ -529,14 +563,12 @@ impl LedgerHardwareWallet {
 
 #[cfg(test)]
 mod tests {
+    use bee_message::address::{Address, Ed25519Address};
     use bee_message::input::{Input, UtxoInput};
     use bee_message::output::{Output, SignatureLockedSingleOutput};
-    use bee_message::address::{Address, Ed25519Address};
 
-    use bee_message::payload::transaction::{
-        TransactionId, Essence, RegularEssenceBuilder,
-    };
-    
+    use bee_message::payload::transaction::{Essence, RegularEssenceBuilder, TransactionId};
+
     use bee_common::packable::Packable;
 
     use std::error::Error;
@@ -552,10 +584,10 @@ mod tests {
         pub bech32: String,
         /// address index
         pub address_index: usize,
-    
+
         pub bip32_index: crate::LedgerBIP32Index,
     }
-    
+
     #[derive(Debug, Clone)]
     pub struct OutputIndexRecorder {
         pub output: Output,
@@ -564,7 +596,6 @@ mod tests {
         pub value: u64,
         pub is_remainder: bool,
     }
-    
 
     fn hex(bytes: &[u8]) -> String {
         let mut ret = String::new();
@@ -683,9 +714,7 @@ mod tests {
 
         // add to essence
         // build essence and add input and output
-        let mut essence_builder = RegularEssenceBuilder::new()
-            .add_input(genesis_input);
-
+        let mut essence_builder = RegularEssenceBuilder::new().add_input(genesis_input);
 
         // add sorted outputs
         for output in outputs {

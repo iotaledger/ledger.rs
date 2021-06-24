@@ -33,6 +33,16 @@ pub enum APDUInstructions {
     Reset = 0xff,
 }
 
+pub(crate) const APDUCLASSB0: u8 = 0xb0;
+pub(crate) const APDUCLASSE0: u8 = 0xe0;
+
+pub(crate) enum APDUInstructionsBolos {
+    GetAppVersionB0 = 0x01,
+    AppExitB0 = 0xa7,
+
+    OpenAppE0 = 0xd8,
+}
+
 pub enum Flows {
     FlowMainMenu = 0,
     FlowGeneratingAddresses = 1,

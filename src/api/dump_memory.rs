@@ -1,5 +1,3 @@
-// avoid dependencies to bee in this low-level lib
-//use bee_common_ext::packable::{Error as PackableError, Packable, Read, Write};
 use crate::api::packable::{Error as PackableError, Packable, Read, Write};
 
 use ledger_apdu::APDUCommand;
@@ -63,7 +61,7 @@ pub fn memory_dump(transport: &dyn Exchange, filename: String) -> Result<(), err
     let res = crate::api::get_app_config::exec(transport)?;
 
     let sram_size = match res.device {
-        0 => 4 * 1024 + 512,    // firmware 2.0.0
+        0 => 4 * 1024 + 512, // firmware 2.0.0
         1 => 30 * 1024,
         _ => {
             return Err(errors::APIError::Unknown);

@@ -4,7 +4,7 @@ use rand::rngs::SmallRng;
 use rand::{RngCore, SeedableRng};
 use std::io::prelude::*;
 use std::sync::Mutex;
- 
+
 use std::convert::TryInto;
 
 use bip39::Mnemonic;
@@ -16,14 +16,14 @@ use blake2::VarBlake2b;
 
 use iota_ledger::LedgerBIP32Index;
 
+use bee_message::address::{Address, Ed25519Address};
 use bee_message::input::{Input, UtxoInput};
 use bee_message::output::{Output, SignatureLockedSingleOutput};
-use bee_message::unlock::{ReferenceUnlock, UnlockBlock};
 use bee_message::signature::{Ed25519Signature, SignatureUnlock};
-use bee_message::address::{Address, Ed25519Address};
+use bee_message::unlock::{ReferenceUnlock, UnlockBlock};
 
 use bee_message::payload::transaction::{
-    TransactionId, Essence, RegularEssence, RegularEssenceBuilder,
+    Essence, RegularEssence, RegularEssenceBuilder, TransactionId,
 };
 
 use bee_common::packable::Packable;
@@ -126,7 +126,7 @@ const MAX_SUM_INPUTS_OUTPUTS: u16 = 16;
 
 use anyhow::Result;
 
-pub fn get_seed() -> [u8;64] {
+pub fn get_seed() -> [u8; 64] {
     // create a new randomly generated mnemonic phrase
     let mnemonic = match Mnemonic::parse(DEFAULT_WORDS) {
         Ok(b) => b,
@@ -365,8 +365,6 @@ pub fn random_essence(
         key_indices.push(input_bip32_index);
         key_strings.push(b32.clone());
 
-        
-
         address_index_recorders.push(InputIndexRecorder {
             address_index: i as usize,
             bip32_index: input_bip32_index,
@@ -496,19 +494,18 @@ pub fn random_essence(
         */
         assert_eq!(b32, cmp_b32);
     }
- 
+
     output_recorder.sort_by(|a, b| a.output.cmp(&b.output));
     address_index_recorders.sort_by(|a, b| a.input.cmp(&b.input));
 
-
-    // sort inputs    
+    // sort inputs
     for recorder in address_index_recorders.clone() {
         essence_builder = essence_builder.add_input(recorder.input.clone());
     }
 
     // sort outputs
     for recorder in output_recorder.clone() {
-        essence_builder = essence_builder.add_output(recorder.output.clone());  
+        essence_builder = essence_builder.add_output(recorder.output.clone());
     }
 
     // finish essence
@@ -525,7 +522,6 @@ pub fn random_essence(
         }
         output_recorder.swap(or_rem_idx, l - 1);
     }
-
 
     // pack the essence to bytes
     let mut essence_bytes: Vec<u8> = Vec::new();
@@ -638,7 +634,6 @@ pub fn random_essence(
         hashed_essence[..32].clone_from_slice(&res[..32]);
     });
 
-
     // unpack all signatures to vector
     let mut readable = &mut &*signature_bytes;
     for t in 0..num_inputs {
@@ -667,8 +662,7 @@ pub fn random_essence(
                         assert_eq!(b32, *key_strings.get(t as usize).unwrap());
 
                         let pub_key =
-                            ed25519::PublicKey::from_compressed_bytes(*pub_key_bytes)
-                                .unwrap();
+                            ed25519::PublicKey::from_compressed_bytes(*pub_key_bytes).unwrap();
 
                         if !pub_key.verify(&sig, &hashed_essence) {
                             panic!("error verifying signature");
@@ -848,7 +842,8 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
     assert_eq!(DEFAULT_SEED, &seed[..]);
 
-    let mut ledger = iota_ledger::get_ledger_by_type(0x80000000, &transport_type, Some(watcher_cb))?;
+    let mut ledger =
+        iota_ledger::get_ledger_by_type(0x80000000, &transport_type, Some(watcher_cb))?;
 
     let is_debug_app = ledger.is_debug_app();
     DEBUG_APP.store(is_debug_app, Ordering::Release);

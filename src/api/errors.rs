@@ -43,7 +43,7 @@ pub enum APIError {
 
     #[error("App version too old")]
     AppTooOld,
-    
+
     #[error("unknown")]
     Unknown,
 }

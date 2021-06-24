@@ -13,6 +13,8 @@ use thiserror::Error;
 
 pub use std::io::{Read, Write};
 
+use std::str;
+
 #[derive(Debug, Error)]
 #[allow(dead_code)] // to have "green" files ;-)
 pub enum Error {
@@ -28,6 +30,8 @@ pub enum Error {
     InvalidType,
     #[error("Invalid announced len.")]
     InvalidAnnouncedLen,
+    #[error("String too long.")]
+    StringTooLong,
 }
 
 pub trait Packable {
@@ -38,6 +42,23 @@ pub trait Packable {
     fn unpack<R: Read>(buf: &mut R) -> Result<Self, Error>
     where
         Self: Sized;
+}
+
+impl Packable for () {
+    fn packed_len(&self) -> usize {
+        0
+    }
+
+    fn pack<W: Write>(&self, _buf: &mut W) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn unpack<R: Read>(_buf: &mut R) -> Result<Self, Error>
+    where
+        Self: Sized,
+    {
+        Ok(())
+    }
 }
 
 macro_rules! impl_packable_for_num {
@@ -60,6 +81,37 @@ macro_rules! impl_packable_for_num {
             }
         }
     };
+}
+
+impl Packable for String {
+    fn packed_len(&self) -> usize {
+        0u8.packed_len() + self.chars().count()
+    }
+
+    fn pack<W: Write>(&self, buf: &mut W) -> Result<(), Error> {
+        if self.chars().count() > 255 {
+            return Err(Error::StringTooLong);
+        }
+        let bytes = self.clone().into_bytes();
+        (bytes.len() as u8).pack(buf)?;
+        buf.write_all(&bytes)?;
+        Ok(())
+    }
+
+    fn unpack<R: Read>(buf: &mut R) -> Result<Self, Error>
+    where
+        Self: Sized,
+    {
+        let l = u8::unpack(buf)?;
+        let mut v: Vec<u8> = Vec::new();
+        for _ in 0..l {
+            v.push(u8::unpack(buf)?);
+        }
+        match str::from_utf8(v.as_ref()) {
+            Ok(v) => Ok(String::from(v)),
+            Err(_) => Err(Error::InvalidUtf8String),
+        }
+    }
 }
 
 impl_packable_for_num!(i8);
