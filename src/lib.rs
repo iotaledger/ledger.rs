@@ -529,13 +529,12 @@ impl LedgerHardwareWallet {
 
 #[cfg(test)]
 mod tests {
-    use bee_message::input::{Input, UTXOInput};
+    use bee_message::input::{Input, UtxoInput};
     use bee_message::output::{Output, SignatureLockedSingleOutput};
-    use bee_message::unlock::{Ed25519Signature, ReferenceUnlock, UnlockBlock, SignatureUnlock};
     use bee_message::address::{Address, Ed25519Address};
-    
+
     use bee_message::payload::transaction::{
-        TransactionId, Essence, RegularEssence, RegularEssenceBuilder,
+        TransactionId, Essence, RegularEssenceBuilder,
     };
     
     use bee_common::packable::Packable;
@@ -586,8 +585,8 @@ mod tests {
         }
 
         // genesis input
-        let genesis_input = Input::UTXO(
-            UTXOInput::new(
+        let genesis_input = Input::Utxo(
+            UtxoInput::new(
                 TransactionId::from([
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
