@@ -32,17 +32,13 @@ impl Exchange for Transport {
         apdu_command: &ledger_apdu::APDUCommand,
     ) -> Result<ledger_apdu::APDUAnswer, TransportError> {
         match self {
-            Transport::TCP(t) => {
-                return t
-                    .exchange(apdu_command)
-                    .await
-                    .map_err(|_| TransportError::APDUExchangeError);
-            }
-            Transport::NativeHID(h) => {
-                return h
-                    .exchange(apdu_command)
-                    .map_err(|_| TransportError::APDUExchangeError);
-            }
+            Transport::TCP(t) => t
+                .exchange(apdu_command)
+                .await
+                .map_err(|_| TransportError::APDUExchangeError),
+            Transport::NativeHID(h) => h
+                .exchange(apdu_command)
+                .map_err(|_| TransportError::APDUExchangeError),
             Transport::TCPWatcher(t) => {
                 let apdu_answer = t
                     .transport_tcp
@@ -52,7 +48,7 @@ impl Exchange for Transport {
                 if t.callback.is_some() {
                     (t.callback.unwrap())(apdu_command, &apdu_answer);
                 }
-                return Ok(apdu_answer);
+                Ok(apdu_answer)
             }
         }
     }

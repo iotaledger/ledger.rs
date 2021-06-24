@@ -9,10 +9,10 @@ futures = "0.3.6"
 log = "0.4.11"
 thiserror = "1.0.20"
 enum-iterator = "0.6.0"
-ledger-apdu = { git = "https://github.com/Zondax/ledger-rs", rev="27cb6bc" }
-ledger-transport-tcp = { git = "https://github.com/Zondax/ledger-rs", rev="27cb6bc" }
-ledger-transport-hid = { git = "https://github.com/Zondax/ledger-rs", rev="27cb6bc" }
-ledger-transport = { git = "https://github.com/Zondax/ledger-rs", rev="27cb6bc" }
+ledger-apdu = { git = "https://github.com/Thoralf-M/ledger-rs", rev="190dc591432e19ac73c42a5a7bcc38cf6ded714e" }
+ledger-transport-tcp = { git = "https://github.com/Thoralf-M/ledger-rs", rev="190dc591432e19ac73c42a5a7bcc38cf6ded714e" }
+ledger-transport-hid = { git = "https://github.com/Thoralf-M/ledger-rs", rev="190dc591432e19ac73c42a5a7bcc38cf6ded714e" }
+ledger-transport = { git = "https://github.com/Thoralf-M/ledger-rs", rev="190dc591432e19ac73c42a5a7bcc38cf6ded714e" }
 
 serde = { version = "1.0", features = ["derive"] }
 bech32 = "0.7.2"
