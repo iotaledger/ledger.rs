@@ -615,12 +615,12 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 [[package]]
 name = "ledger-apdu"
 version = "0.8.0"
-source = "git+https://github.com/Thoralf-M/ledger-rs?rev=190dc591432e19ac73c42a5a7bcc38cf6ded714e#190dc591432e19ac73c42a5a7bcc38cf6ded714e"
+source = "git+https://github.com/Thoralf-M/ledger-rs?rev=517c94266a78782055d239d1a8bce6b62eb3cc28#517c94266a78782055d239d1a8bce6b62eb3cc28"
 
 [[package]]
 name = "ledger-transport"
 version = "0.8.0"
-source = "git+https://github.com/Thoralf-M/ledger-rs?rev=190dc591432e19ac73c42a5a7bcc38cf6ded714e#190dc591432e19ac73c42a5a7bcc38cf6ded714e"
+source = "git+https://github.com/Thoralf-M/ledger-rs?rev=517c94266a78782055d239d1a8bce6b62eb3cc28#517c94266a78782055d239d1a8bce6b62eb3cc28"
 dependencies = [
  "byteorder",
  "futures",
@@ -639,7 +639,7 @@ dependencies = [
 [[package]]
 name = "ledger-transport-hid"
 version = "0.8.0"
-source = "git+https://github.com/Thoralf-M/ledger-rs?rev=190dc591432e19ac73c42a5a7bcc38cf6ded714e#190dc591432e19ac73c42a5a7bcc38cf6ded714e"
+source = "git+https://github.com/Thoralf-M/ledger-rs?rev=517c94266a78782055d239d1a8bce6b62eb3cc28#517c94266a78782055d239d1a8bce6b62eb3cc28"
 dependencies = [
  "byteorder",
  "cfg-if 0.1.10",
@@ -656,7 +656,7 @@ dependencies = [
 [[package]]
 name = "ledger-transport-tcp"
 version = "0.0.1"
-source = "git+https://github.com/Thoralf-M/ledger-rs?rev=190dc591432e19ac73c42a5a7bcc38cf6ded714e#190dc591432e19ac73c42a5a7bcc38cf6ded714e"
+source = "git+https://github.com/Thoralf-M/ledger-rs?rev=517c94266a78782055d239d1a8bce6b62eb3cc28#517c94266a78782055d239d1a8bce6b62eb3cc28"
 dependencies = [
  "hex",
  "ledger-apdu",
