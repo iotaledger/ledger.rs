@@ -550,19 +550,19 @@ dependencies = [
 [[package]]
 name = "iota-crypto"
 version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cccb8160eb8a88434fb3a0a3fc852e625aceab6c0272f0f03cc3f47c125bceab"
+source = "git+https://github.com/iotaledger/crypto.rs?branch=dev#7b9cac4c0aafddc9022f38320b8127af3c58495c"
 dependencies = [
- "blake2",
- "digest",
  "ed25519-zebra",
 ]
 
 [[package]]
 name = "iota-crypto"
 version = "0.5.1"
-source = "git+https://github.com/iotaledger/crypto.rs?branch=dev#7b9cac4c0aafddc9022f38320b8127af3c58495c"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cccb8160eb8a88434fb3a0a3fc852e625aceab6c0272f0f03cc3f47c125bceab"
 dependencies = [
+ "blake2",
+ "digest",
  "ed25519-zebra",
 ]
 
@@ -615,12 +615,12 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 [[package]]
 name = "ledger-apdu"
 version = "0.8.0"
-source = "git+https://github.com/Thoralf-M/ledger-rs?rev=517c94266a78782055d239d1a8bce6b62eb3cc28#517c94266a78782055d239d1a8bce6b62eb3cc28"
+source = "git+https://github.com/iotaledger/ledger-rs?rev=2b0a4807e38313b08e55ac8c703f6bc4193503f0#2b0a4807e38313b08e55ac8c703f6bc4193503f0"
 
 [[package]]
 name = "ledger-transport"
 version = "0.8.0"
-source = "git+https://github.com/Thoralf-M/ledger-rs?rev=517c94266a78782055d239d1a8bce6b62eb3cc28#517c94266a78782055d239d1a8bce6b62eb3cc28"
+source = "git+https://github.com/iotaledger/ledger-rs?rev=2b0a4807e38313b08e55ac8c703f6bc4193503f0#2b0a4807e38313b08e55ac8c703f6bc4193503f0"
 dependencies = [
  "byteorder",
  "futures",
@@ -639,7 +639,7 @@ dependencies = [
 [[package]]
 name = "ledger-transport-hid"
 version = "0.8.0"
-source = "git+https://github.com/Thoralf-M/ledger-rs?rev=517c94266a78782055d239d1a8bce6b62eb3cc28#517c94266a78782055d239d1a8bce6b62eb3cc28"
+source = "git+https://github.com/iotaledger/ledger-rs?rev=2b0a4807e38313b08e55ac8c703f6bc4193503f0#2b0a4807e38313b08e55ac8c703f6bc4193503f0"
 dependencies = [
  "byteorder",
  "cfg-if 0.1.10",
@@ -656,7 +656,7 @@ dependencies = [
 [[package]]
 name = "ledger-transport-tcp"
 version = "0.0.1"
-source = "git+https://github.com/Thoralf-M/ledger-rs?rev=517c94266a78782055d239d1a8bce6b62eb3cc28#517c94266a78782055d239d1a8bce6b62eb3cc28"
+source = "git+https://github.com/iotaledger/ledger-rs?rev=2b0a4807e38313b08e55ac8c703f6bc4193503f0#2b0a4807e38313b08e55ac8c703f6bc4193503f0"
 dependencies = [
  "hex",
  "ledger-apdu",
@@ -767,9 +767,9 @@ dependencies = [
 
 [[package]]
 name = "pin-project-lite"
-version = "0.2.6"
+version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc0e1f259c92177c30a4c9d177246edd0a3568b25756a977d0632cf8fa37e905"
+checksum = "8d31d11c69a6b52a174b42bdc0c30e5e11670f90788b2c471c31c1d17d449443"
 
 [[package]]
 name = "pin-utils"
