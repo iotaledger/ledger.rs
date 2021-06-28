@@ -6,6 +6,7 @@ use std::io::prelude::*;
 use std::sync::Mutex;
 
 use std::convert::TryInto;
+use std::str::FromStr;
 
 use bip39::Mnemonic;
 
@@ -670,17 +671,11 @@ pub fn random_essence(
 
                         println!("found valid signature");
                     }
-                    _ => {
-                        panic!("unsupported signature");
-                    }
                 }
             }
             UnlockBlock::Reference(_) => {
                 // NOP
                 println!("found reference");
-            }
-            _ => {
-                panic!("unsupported signature");
             }
         }
     }
