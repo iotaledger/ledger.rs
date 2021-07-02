@@ -1,3 +1,5 @@
+pub const HARDENED: u32 = 0x80000000;
+
 pub const DATA_BLOCK_SIZE: usize = 251;
 pub const APDUCLASS: u8 = 0x7b;
 
