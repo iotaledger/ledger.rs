@@ -32,17 +32,13 @@ impl Exchange for Transport {
         apdu_command: &ledger_apdu::APDUCommand,
     ) -> Result<ledger_apdu::APDUAnswer, TransportError> {
         match self {
-            Transport::TCP(t) => {
-                return t
-                    .exchange(apdu_command)
-                    .await
-                    .map_err(|_| TransportError::APDUExchangeError);
-            }
-            Transport::NativeHID(h) => {
-                return h
-                    .exchange(apdu_command)
-                    .map_err(|_| TransportError::APDUExchangeError);
-            }
+            Transport::TCP(t) => t
+                .exchange(apdu_command)
+                .await
+                .map_err(|_| TransportError::APDUExchangeError),
+            Transport::NativeHID(h) => h
+                .exchange(apdu_command)
+                .map_err(|_| TransportError::APDUExchangeError),
             Transport::TCPWatcher(t) => {
                 let apdu_answer = t
                     .transport_tcp
@@ -52,7 +48,7 @@ impl Exchange for Transport {
                 if t.callback.is_some() {
                     (t.callback.unwrap())(apdu_command, &apdu_answer);
                 }
-                return Ok(apdu_answer);
+                Ok(apdu_answer)
             }
         }
     }
@@ -414,6 +410,31 @@ impl LedgerHardwareWallet {
         Ok(addresses)
     }
 
+    pub fn get_first_address(
+        &self,
+    ) -> Result<[u8; constants::ADDRESS_SIZE_BYTES], api::errors::APIError> {
+        // clear data buffer before addresses can be generated
+        api::clear_data_buffer::exec(self.transport())?;
+
+        // generate one single address
+        api::generate_address::exec(
+            self.transport(),
+            false, // non interactive
+            LedgerBIP32Index {
+                bip32_index: constants::HARDENED,
+                bip32_change: constants::HARDENED,
+            },
+            1, // single address
+        )?;
+ 
+        // read addresses from device
+        let buffer = self.read_data_bufer()?;
+
+        // no need to copy address type byte!
+        let addr = buffer[1..constants::ADDRESS_WITH_TYPE_SIZE_BYTES].try_into().unwrap();
+        Ok(addr)
+    }
+
     fn use_single_sign(&self) -> Result<bool, APIError> {
         let single_sign = match self.device_type() {
             LedgerDeviceTypes::LedgerNanoS => true,
@@ -575,7 +596,7 @@ mod tests {
 
     use serial_test::serial;
 
-    const ACCOUNT: u32 = 0x80000000;
+    const ACCOUNT: u32 = 0 | HARDENED;
 
     #[derive(Debug, Clone)]
     pub struct InputIndexRecorder {
