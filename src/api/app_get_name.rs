@@ -69,22 +69,15 @@ impl Packable for Response {
         let flags = if app == "BOLOS" {
             0x00
         } else {
-            let l = u8::unpack(buf)?;
-
-            // at least one byte always exists
-            if l < 1 {
-                return Err(PackableError::InvalidAnnouncedLen);
-            }
-
-            let flags = u8::unpack(buf)?;
-
-            // if there are more bytes, we don't know what they are ... but we consume them!
-            if l > 1 {
-                for _ in 0..l - 1 {
-                    let _ = u8::unpack(buf)?;
+            // consume all extra bytes (nano x <-> nano s compatibility!)
+            loop {
+                let u = u8::unpack(buf);
+                if u.is_ok() {
+                    continue;
                 }
+                break;
             }
-            flags
+            0
         };
         Ok(Self {
             format_id,
