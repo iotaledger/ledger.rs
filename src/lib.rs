@@ -267,6 +267,15 @@ impl LedgerHardwareWallet {
         &self.device_type
     }
 
+    // uses the get_data_buffer_state-Api call to figure out if the ledger is locked
+    pub fn is_locked(&self) -> Result<bool, APIError> {
+        match api::get_data_buffer_state::exec(self.transport()) {
+            Err(APIError::SecurityStatusNotSatisfied) => Ok(true),
+            Ok(_) => Ok(false),
+            Err(e) => Err(e),
+        }
+    }
+
     // convenience function for first getting the data buffer state and then
     // downloading as many blocks as needed from the device
     // it returns a vector with the size reported by the device
@@ -426,12 +435,14 @@ impl LedgerHardwareWallet {
             },
             1, // single address
         )?;
- 
+
         // read addresses from device
         let buffer = self.read_data_bufer()?;
 
         // no need to copy address type byte!
-        let addr = buffer[1..constants::ADDRESS_WITH_TYPE_SIZE_BYTES].try_into().unwrap();
+        let addr = buffer[1..constants::ADDRESS_WITH_TYPE_SIZE_BYTES]
+            .try_into()
+            .unwrap();
         Ok(addr)
     }
 
