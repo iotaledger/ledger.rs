@@ -44,9 +44,9 @@ lazy_static! {
 }
 
 enum FormatTypes {
-    JSON,
-    HEX,
-    BIN,
+    Json,
+    Hex,
+    Bin,
 }
 
 #[derive(Default)]
@@ -154,7 +154,7 @@ pub fn get_key(
         index.bip32_index & !0x80000000
     );
     let bip32_path = slip10::path::BIP32Path::from_str(&path)?;
-    slip10::derive_key_from_path(&seed[..], slip10::Curve::Ed25519, &bip32_path)
+    slip10::derive_key_from_path(seed, slip10::Curve::Ed25519, &bip32_path)
 }
 
 pub fn get_addr_from_pubkey(pubkey: [u8; 32]) -> [u8; 32] {
@@ -629,7 +629,7 @@ pub fn random_essence(
     println!();
 
     let mut hasher = VarBlake2b::new(32).unwrap();
-    hasher.update(essence_bytes.clone());
+    hasher.update(essence_bytes);
     let mut hashed_essence: [u8; 32] = [0; 32];
     hasher.finalize_variable(|res| {
         hashed_essence[..32].clone_from_slice(&res[..32]);
@@ -692,7 +692,7 @@ fn watcher_cb(apdu_command: &APDUCommand, apdu_answer: &APDUAnswer) {
     raw_answer.extend(&apdu_answer.retcode.to_be_bytes());
 
     match writer.format {
-        Some(FormatTypes::JSON) => {
+        Some(FormatTypes::Json) => {
             let command_data: String = apdu_command
                 .data
                 .iter()
@@ -716,11 +716,11 @@ fn watcher_cb(apdu_command: &APDUCommand, apdu_answer: &APDUAnswer) {
             writer.write(&command);
             writer.write(&answer);
         }
-        Some(FormatTypes::HEX) => {
+        Some(FormatTypes::Hex) => {
             writer.write(&format!(">>{}", hex(&raw_command)));
             writer.write(&format!("<<{}", hex(&raw_answer)));
         }
-        Some(FormatTypes::BIN) => {
+        Some(FormatTypes::Bin) => {
             let rcl = raw_command.len() as u32;
             let ral = raw_answer.len() as u32;
             writer.write_bin(&rcl.to_le_bytes());
@@ -809,24 +809,22 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
         let format_type = match matches.value_of("format") {
             Some(f) => match f {
-                "hex" => FormatTypes::HEX,
-                "json" => FormatTypes::JSON,
-                "bin" => FormatTypes::BIN,
+                "hex" => FormatTypes::Hex,
+                "json" => FormatTypes::Json,
+                "bin" => FormatTypes::Bin,
                 _ => panic!("unknown format"),
             },
-            None => FormatTypes::JSON,
+            None => FormatTypes::Json,
         };
 
         writer.set_format_type(format_type);
         writer.open(String::from(filename.unwrap()))?;
         drop(writer);
         iota_ledger::TransportTypes::TCPWatcher
+    } else if is_simulator {
+        iota_ledger::TransportTypes::TCP
     } else {
-        if is_simulator {
-            iota_ledger::TransportTypes::TCP
-        } else {
-            iota_ledger::TransportTypes::NativeHID
-        }
+        iota_ledger::TransportTypes::NativeHID
     };
 
     println!("{} {}", is_simulator, non_interactive);

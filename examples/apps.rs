@@ -3,8 +3,6 @@ use std::{thread, time};
 
 use std::error::Error;
 
-use iota_ledger::ledger_apdu::{APDUAnswer, APDUCommand};
-
 pub fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
@@ -35,7 +33,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     if app != "IOTA" {
         iota_ledger::exit_app(&transport_type)?;
         thread::sleep(time::Duration::from_secs(5));
-        iota_ledger::open_app(&transport_type, String::from("IOTA"));
+        iota_ledger::open_app(&transport_type, String::from("IOTA"))?;
     }
 
     let (app, version) = iota_ledger::get_opened_app(&transport_type)?;
