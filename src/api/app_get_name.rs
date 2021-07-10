@@ -31,27 +31,10 @@ pub struct Response {
 
 impl Packable for Response {
     fn packed_len(&self) -> usize {
-        self.format_id.packed_len()
-            + self.app.packed_len()
-            + self.version.packed_len()
-            + if self.app == "BOLOS" {
-                0
-            } else {
-                0u8.packed_len() + 0u8.packed_len()
-            }
+        0
     }
 
-    fn pack<W: Write>(&self, buf: &mut W) -> Result<(), PackableError> {
-        self.format_id.pack(buf)?;
-        self.app.pack(buf)?;
-        self.version.pack(buf)?;
-
-        // two extra bytes if app is not BOLOS
-        if self.app != "BOLOS" {
-            1u8.pack(buf)?;
-            self.flags.pack(buf)?;
-        }
-
+    fn pack<W: Write>(&self, _buf: &mut W) -> Result<(), PackableError> {
         Ok(())
     }
 
@@ -62,35 +45,30 @@ impl Packable for Response {
         // format always 0x01 but don't insist on it
         let format_id = u8::unpack(buf)?;
 
-        let app = String::unpack(buf)?;
+        let mut app = String::unpack(buf)?;
+
+        // nanox sdk bug
+        // https://github.com/LedgerHQ/nanox-secure-sdk/issues/6
+        // reported as OLOS\0
+        if app.chars().count() == 5 && app.as_bytes() == [0x4f, 0x4c, 0x4f, 0x53, 0x00] {
+            // unquirk dashboard name
+            app = String::from("BOLOS");
+        }
+
+        // version is corrupted on nanox sdk - but we don't need it anyway
+        // the reported length is ok
         let version = String::unpack(buf)?;
 
-        // dashboard app doesn't give flags
-        let flags = if app == "BOLOS" {
-            0x00
-        } else {
-            let l = u8::unpack(buf)?;
+        // consume all extra bytes (nano x <-> nano s compatibility!)
+        while u8::unpack(buf).is_ok() {
+            // NOP
+        }
 
-            // at least one byte always exists
-            if l < 1 {
-                return Err(PackableError::InvalidAnnouncedLen);
-            }
-
-            let flags = u8::unpack(buf)?;
-
-            // if there are more bytes, we don't know what they are ... but we consume them!
-            if l > 1 {
-                for _ in 0..l - 1 {
-                    let _ = u8::unpack(buf)?;
-                }
-            }
-            flags
-        };
         Ok(Self {
             format_id,
             app,
             version,
-            flags,
+            flags: 0,
         })
     }
 }
