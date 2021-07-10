@@ -19,19 +19,18 @@ const BIP32_ACCOUNT: u32 = /*0 |*/ HARDENED;
 const BIP32_CHANGE: u32 = /*0 |*/ HARDENED;
 const BIP32_INDEX: u32 = /*0 |*/ HARDENED;
 
+/// get seed from mnemonic
 pub fn get_seed(words: &str, password: &str) -> [u8; 64] {
-    // create a new randomly generated mnemonic phrase
     let mnemonic = match Mnemonic::parse(words) {
         Ok(b) => b,
         Err(_) => {
             panic!("parsind the 24 words failed!");
         }
     };
-
-    // get the HD wallet seed
     mnemonic.to_seed(password)
 }
 
+/// get private key
 pub fn get_key(
     seed: &[u8],
     chain: u32,
@@ -49,6 +48,7 @@ pub fn get_key(
     slip10::derive_key_from_path(seed, slip10::Curve::Ed25519, &bip32_path)
 }
  
+/// get address from pubkey
 pub fn get_addr_from_pubkey(pubkey: [u8; 32]) -> [u8; 32] {
     let mut hasher = VarBlake2b::new(32).unwrap();
     hasher.update(pubkey);
@@ -59,6 +59,7 @@ pub fn get_addr_from_pubkey(pubkey: [u8; 32]) -> [u8; 32] {
     result
 }
 
+/// get address
 pub fn get_addr(
     seed: &[u8],
     chain: u32,
@@ -72,6 +73,7 @@ pub fn get_addr(
     Ok(get_addr_from_pubkey(truncated))
 }
 
+/// get address as bech32 string
 pub fn get_bech32_address(hrp: &str, address_bytes: [u8; 32]) -> String {
     let mut addr_bytes_with_type = [0u8; 33];
     // first address byte is 0 for ed25519
@@ -155,7 +157,6 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     println!("verify address above with display on the ledger nano s/x and acknowledge");
     println!();
 
-
     // generate address with prompt (to compare it)
     let _ = ledger.get_addresses(true, bip32_indices, 1)?;
 
@@ -168,8 +169,6 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
     println!();
 
-    //    let words = "guess egg satisfy snake narrow fiber letter lonely about twin coral width whip keep brass engine morning dress dream elbow weasel picture fork woman";
-    //    let password = "";
     let seed = get_seed(words.as_str(), &password);
 
     let address_bytes = get_addr(&seed, chain, BIP32_ACCOUNT, bip32_indices).unwrap();
