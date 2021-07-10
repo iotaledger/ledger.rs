@@ -160,7 +160,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     let _ = ledger.get_addresses(true, bip32_indices, 1)?;
 
     println!("WARNING: Entering your 24 words here is DANGEROUS because it circumvents the security model of your Ledger Nano S/X!");
-    println!("If you don't know exactly what you are doing please stop here, otherwise continue on YOUR OWN RISK!");
+    println!("         If you don't know exactly what you are doing please stop here, otherwise continue on YOUR OWN RISK!");
     println!();
 
     let words = prompt_input("enter your 24 words");
