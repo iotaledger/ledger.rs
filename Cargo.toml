@@ -45,5 +45,6 @@ blake2 = "0.9.1"
 anyhow = "1.0"
 env_logger = "0.8.2"
 clap = "2.33.3"
+rpassword = "0.0.4"
 
 
