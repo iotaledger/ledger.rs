@@ -527,7 +527,6 @@ dependencies = [
  "ledger-apdu",
  "ledger-transport",
  "ledger-transport-hid",
- "ledger-transport-tcp",
  "log",
  "rand",
  "rpassword",

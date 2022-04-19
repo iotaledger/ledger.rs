@@ -1,12 +1,12 @@
 use futures::executor;
 
 use ledger_apdu::APDUCommand;
-use ledger_transport::Exchange;
+use crate::Transport;
 
 use crate::api::{errors, packable};
 
 pub fn exec<T: packable::Packable>(
-    transport: &dyn Exchange,
+    transport: &Transport,
     cmd: APDUCommand,
 ) -> Result<T, errors::APIError> {
     match executor::block_on(transport.exchange(&cmd)) {

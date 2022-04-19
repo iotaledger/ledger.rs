@@ -1,7 +1,7 @@
 use crate::api::packable::{Error as PackableError, Packable, Read, Write};
 
 use ledger_apdu::APDUCommand;
-use ledger_transport::Exchange;
+use crate::Transport;
 
 use crate::api::{constants, errors, helpers};
 
@@ -37,7 +37,7 @@ impl Packable for Response {
 
 impl Response {}
 
-pub fn exec(transport: &dyn Exchange, block_number: u8) -> Result<Response, errors::APIError> {
+pub fn exec(transport: &Transport, block_number: u8) -> Result<Response, errors::APIError> {
     let cmd = APDUCommand {
         cla: constants::APDUCLASS,
         ins: constants::APDUInstructions::DumpMemory as u8,
@@ -48,7 +48,7 @@ pub fn exec(transport: &dyn Exchange, block_number: u8) -> Result<Response, erro
     helpers::exec::<Response>(transport, cmd)
 }
 
-pub fn read(transport: &dyn Exchange, size: usize) -> Result<Vec<u8>, errors::APIError> {
+pub fn read(transport: &Transport, size: usize) -> Result<Vec<u8>, errors::APIError> {
     let mut mem: Vec<u8> = Vec::new();
     for i in 0..(size / 128) as u8 {
         let mut block = exec(transport, i)?;
@@ -57,7 +57,7 @@ pub fn read(transport: &dyn Exchange, size: usize) -> Result<Vec<u8>, errors::AP
     Ok(mem)
 }
 
-pub fn memory_dump(transport: &dyn Exchange, filename: String) -> Result<(), errors::APIError> {
+pub fn memory_dump(transport: &Transport, filename: String) -> Result<(), errors::APIError> {
     let res = crate::api::get_app_config::exec(transport)?;
 
     let sram_size = match res.device {

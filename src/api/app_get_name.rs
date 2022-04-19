@@ -1,7 +1,7 @@
 use crate::api::packable::{Error as PackableError, Packable, Read, Write};
 
 use ledger_apdu::APDUCommand;
-use ledger_transport::Exchange;
+use crate::Transport;
 
 use crate::api::{constants, errors, helpers};
 /*
@@ -77,7 +77,7 @@ impl Response {
     // NOP
 }
 
-pub fn exec(transport: &dyn Exchange) -> Result<Response, errors::APIError> {
+pub fn exec(transport: &Transport) -> Result<Response, errors::APIError> {
     let cmd = APDUCommand {
         cla: constants::APDUCLASSB0,
         ins: constants::APDUInstructionsBolos::GetAppVersionB0 as u8,

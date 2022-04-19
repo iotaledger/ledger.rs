@@ -17,6 +17,8 @@ use blake2::VarBlake2b;
 
 use iota_ledger::LedgerBIP32Index;
 
+use ledger_transport::{APDUAnswer, APDUCommand};
+
 use bee_message::address::{Address, Ed25519Address};
 use bee_message::input::{Input, UtxoInput};
 use bee_message::output::{Output, SignatureLockedSingleOutput};
@@ -28,8 +30,6 @@ use bee_message::payload::transaction::{
 };
 
 use bee_common::packable::Packable;
-
-use iota_ledger::ledger_apdu::{APDUAnswer, APDUCommand};
 
 use crypto::signatures::ed25519;
 
@@ -796,7 +796,13 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         false => 0,
     };
 
-    let transport_type = if matches.is_present("recorder") {
+    let transport_type = if is_simulator {
+        iota_ledger::TransportTypes::TCP
+    } else {
+        iota_ledger::TransportTypes::NativeHID
+    };
+
+    if matches.is_present("recorder") {
         if !is_simulator {
             panic!("transport watcher only is supported for the simulator");
         }
@@ -820,12 +826,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         writer.set_format_type(format_type);
         writer.open(String::from(filename.unwrap()))?;
         drop(writer);
-        iota_ledger::TransportTypes::TCPWatcher
-    } else if is_simulator {
-        iota_ledger::TransportTypes::TCP
-    } else {
-        iota_ledger::TransportTypes::NativeHID
-    };
+    }
 
     println!("{} {}", is_simulator, non_interactive);
 
