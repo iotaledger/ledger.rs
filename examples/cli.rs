@@ -248,7 +248,7 @@ pub fn get_transaction_unlock_blocks(
             // If not, we should create a signature unlock block
             let private_key = get_key(&seed, account, recorder.bip32_index).unwrap();
 
-            let iota_priv_key = ed25519::SecretKey::from_le_bytes(private_key.key).unwrap();
+            let iota_priv_key = ed25519::SecretKey::from_bytes(private_key.key);
 
             let public_key = private_key.public_key();
             let mut public_key_trunc = [0u8; 32];
@@ -663,7 +663,7 @@ pub fn random_essence(
                         assert_eq!(b32, *key_strings.get(t as usize).unwrap());
 
                         let pub_key =
-                            ed25519::PublicKey::from_compressed_bytes(*pub_key_bytes).unwrap();
+                            ed25519::PublicKey::try_from_bytes(*pub_key_bytes).unwrap();
 
                         if !pub_key.verify(&sig, &hashed_essence) {
                             panic!("error verifying signature");
