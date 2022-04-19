@@ -1,9 +1,8 @@
-use ledger_apdu::APDUCommand;
-use ledger_transport::Exchange;
+use ledger_transport::APDUCommand;
 
 use crate::api::{constants, errors, helpers};
 
-pub fn exec(transport: &dyn Exchange, non_interactive_mode: bool) -> Result<(), errors::APIError> {
+pub fn exec(transport: &crate::Transport, non_interactive_mode: bool) -> Result<(), errors::APIError> {
     let cmd = APDUCommand {
         cla: constants::APDUCLASS,
         ins: constants::APDUInstructions::SetNonInteractiveMode as u8,

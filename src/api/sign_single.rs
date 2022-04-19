@@ -1,5 +1,4 @@
-use ledger_apdu::APDUCommand;
-use ledger_transport::Exchange;
+use ledger_transport::APDUCommand;
 
 use crate::api::packable::{Error as PackableError, Packable, Read, Write};
 
@@ -60,7 +59,7 @@ impl Packable for ResponseVec {
 }
 
 pub fn exec(
-    transport: &dyn Exchange,
+    transport: &crate::Transport,
     signature_index: u8,
 ) -> Result<ResponseVec, errors::APIError> {
     let cmd = APDUCommand {

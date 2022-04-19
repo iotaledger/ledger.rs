@@ -1,5 +1,4 @@
-use ledger_apdu::APDUCommand;
-use ledger_transport::Exchange;
+use ledger_transport::APDUCommand;
 
 use crate::api::{constants, errors, helpers};
 
@@ -32,7 +31,7 @@ impl Packable for Request {
     }
 }
 
-pub fn exec(transport: &dyn Exchange, account: u32) -> Result<(), errors::APIError> {
+pub fn exec(transport: &crate::Transport, account: u32) -> Result<(), errors::APIError> {
     let req = Request {
         bip32_account: account,
     };

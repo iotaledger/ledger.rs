@@ -1,9 +1,8 @@
-use ledger_apdu::APDUCommand;
-use ledger_transport::Exchange;
+use ledger_transport::APDUCommand;
 
 use crate::api::{constants, errors, helpers};
 
-pub fn exec(transport: &dyn Exchange) -> Result<(), errors::APIError> {
+pub fn exec(transport: &crate::Transport) -> Result<(), errors::APIError> {
     let cmd = APDUCommand {
         cla: constants::APDUCLASSB0,
         ins: constants::APDUInstructionsBolos::AppExitB0 as u8,

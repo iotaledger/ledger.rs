@@ -1,7 +1,6 @@
 use crate::api::packable::{Error as PackableError, Packable, Read, Write};
 
-use ledger_apdu::APDUCommand;
-use ledger_transport::Exchange;
+use ledger_transport::APDUCommand;
 
 use crate::api::{constants, errors, helpers};
 /*
@@ -34,7 +33,7 @@ impl Packable for Request {
     }
 }
 
-pub fn exec(transport: &dyn Exchange, app: String) -> Result<(), errors::APIError> {
+pub fn exec(transport: &crate::Transport, app: String) -> Result<(), errors::APIError> {
     let req = Request { app };
 
     let mut buf = Vec::new();

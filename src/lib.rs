@@ -3,56 +3,24 @@
 use std::convert::TryInto;
 use std::{thread, time};
 
-//use ledger_apdu::{APDUAnswer, APDUCommand};
-use ledger_transport::{errors::TransportError, Exchange};
-
 pub mod ledger_apdu {
     pub use ledger_apdu::{APDUAnswer, APDUCommand};
 }
-
-use ledger::TransportNativeHID;
-use ledger_tcp::TransportTCP;
 
 use crate::api::constants;
 use crate::api::constants::DataTypeEnum;
 use crate::api::errors::APIError;
 
+pub use crate::transport::{Transport, TransportTypes};
+pub use crate::transport::transport_tcp::Callback;
+
 use crate::api::packable::{Error as PackableError, Packable, Read, Write};
 
-use trait_async::trait_async;
-
 pub mod api;
+pub mod transport;
+
 
 const MINIMUM_APP_VERSION: u32 = 6002;
-
-#[trait_async]
-impl Exchange for Transport {
-    async fn exchange(
-        &self,
-        apdu_command: &ledger_apdu::APDUCommand,
-    ) -> Result<ledger_apdu::APDUAnswer, TransportError> {
-        match self {
-            Transport::TCP(t) => t
-                .exchange(apdu_command)
-                .await
-                .map_err(|_| TransportError::APDUExchangeError),
-            Transport::NativeHID(h) => h
-                .exchange(apdu_command)
-                .map_err(|_| TransportError::APDUExchangeError),
-            Transport::TCPWatcher(t) => {
-                let apdu_answer = t
-                    .transport_tcp
-                    .exchange(apdu_command)
-                    .await
-                    .map_err(|_| TransportError::APDUExchangeError)?;
-                if t.callback.is_some() {
-                    (t.callback.unwrap())(apdu_command, &apdu_answer);
-                }
-                Ok(apdu_answer)
-            }
-        }
-    }
-}
 
 #[derive(Default, Debug, Clone, Copy, Hash, Eq, PartialEq)]
 pub struct LedgerBIP32Index {
@@ -82,44 +50,6 @@ impl Packable for LedgerBIP32Index {
     }
 }
 
-type Callback = fn(apdu_command: &ledger_apdu::APDUCommand, apdu_answer: &ledger_apdu::APDUAnswer);
-
-pub struct TransportTCPWatcher {
-    callback: Option<Callback>,
-    transport_tcp: Box<dyn Exchange>,
-}
-
-/// TransportTCPWatcher is a wrapper around TransportTCP
-/// After data was exchanged with the underlying TCP transport, a callback is called with the APDU request and APDU response
-/// The main use of the Watcher is to record test-vectors with valid responses for automatic testing.
-impl TransportTCPWatcher {
-    pub fn new(callback: Option<Callback>, url: &str, port: u16) -> Self {
-        TransportTCPWatcher {
-            callback,
-            transport_tcp: Box::new(Transport::TCP(TransportTCP::new(url, port))),
-        }
-    }
-
-    pub fn set_callback(&mut self, c: Callback) {
-        self.callback = Some(c);
-    }
-}
-
-#[derive(Copy, Clone)]
-#[allow(clippy::upper_case_acronyms)]
-pub enum TransportTypes {
-    TCP,
-    NativeHID,
-    TCPWatcher,
-}
-
-#[allow(clippy::upper_case_acronyms)]
-pub(crate) enum Transport {
-    TCP(TransportTCP),
-    NativeHID(TransportNativeHID),
-    TCPWatcher(TransportTCPWatcher),
-}
-
 pub enum LedgerDeviceTypes {
     LedgerNanoX,
     LedgerNanoS,
@@ -137,7 +67,7 @@ pub struct LedgerHardwareWallet {
 pub fn get_ledger_by_type(
     bip32_account: u32,
     transport_type: &TransportTypes,
-    callback: Option<Callback>,
+    callback: Option<crate::transport::transport_tcp::Callback>,
 ) -> Result<Box<LedgerHardwareWallet>, APIError> {
     let ledger = crate::LedgerHardwareWallet::new(transport_type, callback)?;
 
@@ -150,7 +80,7 @@ pub fn get_ledger_by_type(
 /// Get currently opened app
 /// If "BOLOS" is returned, the dashboard is open
 pub fn get_opened_app(transport_type: &TransportTypes) -> Result<(String, String), APIError> {
-    let transport = crate::LedgerHardwareWallet::create_transport(transport_type, None)?;
+    let transport = crate::transport::create_transport(transport_type, None)?;
 
     let app = crate::api::app_get_name::exec(&transport)?;
     Ok((app.app, app.version))
@@ -159,14 +89,14 @@ pub fn get_opened_app(transport_type: &TransportTypes) -> Result<(String, String
 /// Open app on the nano s/x
 /// Only works if dashboard is open
 pub fn open_app(transport_type: &TransportTypes, app: String) -> Result<(), APIError> {
-    let transport = crate::LedgerHardwareWallet::create_transport(transport_type, None)?;
+    let transport = crate::transport::create_transport(transport_type, None)?;
     crate::api::app_open::exec(&transport, app)
 }
 
 /// Close current opened app on the nano s/x
 /// Only works if an app is open
 pub fn exit_app(transport_type: &TransportTypes) -> Result<(), APIError> {
-    let transport = crate::LedgerHardwareWallet::create_transport(transport_type, None)?;
+    let transport = crate::transport::create_transport(transport_type, None)?;
     crate::api::app_exit::exec(&transport)
 }
 
@@ -185,27 +115,10 @@ pub fn get_ledger(
 }
 
 impl LedgerHardwareWallet {
-    // only create transport without IOTA specific calls
-    fn create_transport(
-        transport_type: &TransportTypes,
-        callback: Option<Callback>,
-    ) -> Result<Transport, APIError> {
-        let transport = match transport_type {
-            TransportTypes::TCP => Transport::TCP(TransportTCP::new("127.0.0.1", 9999)),
-            TransportTypes::NativeHID => Transport::NativeHID(
-                TransportNativeHID::new().map_err(|_| APIError::TransportError)?,
-            ),
-            TransportTypes::TCPWatcher => {
-                Transport::TCPWatcher(TransportTCPWatcher::new(callback, "127.0.0.1", 9999))
-            }
-        };
-        Ok(transport)
-    }
-
     // creates object but doesn't connect it
     // initialize with dummy-device
     fn new(transport_type: &TransportTypes, callback: Option<Callback>) -> Result<Self, APIError> {
-        let transport = LedgerHardwareWallet::create_transport(transport_type, callback)?;
+        let transport = crate::transport::create_transport(transport_type, callback)?;
 
         // reset api
         crate::api::reset::exec(&transport)?;
@@ -242,7 +155,7 @@ impl LedgerHardwareWallet {
         })
     }
 
-    fn transport(&self) -> &dyn Exchange {
+    fn transport(&self) -> &Transport {
         &self.transport
     }
 
@@ -254,7 +167,6 @@ impl LedgerHardwareWallet {
         match self.transport {
             Transport::TCP(_) => true,
             Transport::NativeHID(_) => false,
-            Transport::TCPWatcher(_) => true,
         }
     }
 
@@ -606,7 +518,7 @@ mod tests {
     use std::error::Error;
 
     use serial_test::serial;
-
+    const HARDENED : u32 = 0x80000000;
     const ACCOUNT: u32 = 0 | HARDENED;
 
     #[derive(Debug, Clone)]

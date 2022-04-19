@@ -1,7 +1,6 @@
 use crate::api::packable::{Error as PackableError, Packable, Read, Write};
 
-use ledger_apdu::APDUCommand;
-use ledger_transport::Exchange;
+use ledger_transport::APDUCommand;
 
 use crate::api::{constants, errors, helpers};
 
@@ -34,7 +33,7 @@ impl Packable for Response {
 
 impl Response {}
 
-pub fn exec(transport: &dyn Exchange, block_number: u8) -> Result<Response, errors::APIError> {
+pub fn exec(transport: &crate::Transport, block_number: u8) -> Result<Response, errors::APIError> {
     let cmd = APDUCommand {
         cla: constants::APDUCLASS,
         ins: constants::APDUInstructions::ReadDataBlock as u8,

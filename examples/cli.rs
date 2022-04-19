@@ -29,8 +29,6 @@ use bee_message::payload::transaction::{
 
 use bee_common::packable::Packable;
 
-use iota_ledger::ledger_apdu::{APDUAnswer, APDUCommand};
-
 use crypto::signatures::ed25519;
 
 use std::error::Error;
@@ -248,7 +246,7 @@ pub fn get_transaction_unlock_blocks(
             // If not, we should create a signature unlock block
             let private_key = get_key(&seed, account, recorder.bip32_index).unwrap();
 
-            let iota_priv_key = ed25519::SecretKey::from_le_bytes(private_key.key).unwrap();
+            let iota_priv_key = ed25519::SecretKey::from_bytes(private_key.key);
 
             let public_key = private_key.public_key();
             let mut public_key_trunc = [0u8; 32];
@@ -663,7 +661,7 @@ pub fn random_essence(
                         assert_eq!(b32, *key_strings.get(t as usize).unwrap());
 
                         let pub_key =
-                            ed25519::PublicKey::from_compressed_bytes(*pub_key_bytes).unwrap();
+                            ed25519::PublicKey::try_from_bytes(*pub_key_bytes).unwrap();
 
                         if !pub_key.verify(&sig, &hashed_essence) {
                             panic!("error verifying signature");
@@ -683,13 +681,13 @@ pub fn random_essence(
     Ok(true)
 }
 
-fn watcher_cb(apdu_command: &APDUCommand, apdu_answer: &APDUAnswer) {
+fn watcher_cb(apdu_command: &ledger_transport::APDUCommand<Vec<u8>>, apdu_answer: &ledger_transport::APDUAnswer<Vec<u8>>) {
     let mut writer = WRITER.lock().unwrap();
 
     let raw_command = apdu_command.serialize();
     let mut raw_answer: Vec<u8> = Vec::new();
-    raw_answer.extend(&apdu_answer.data);
-    raw_answer.extend(&apdu_answer.retcode.to_be_bytes());
+    raw_answer.extend(&apdu_answer.data()[..]);
+    raw_answer.extend(&apdu_answer.retcode().to_be_bytes());
 
     match writer.format {
         Some(FormatTypes::Json) => {
@@ -700,7 +698,7 @@ fn watcher_cb(apdu_command: &APDUCommand, apdu_answer: &APDUAnswer) {
                 .collect::<Vec<String>>()
                 .join(", ");
             let answer_data: String = apdu_answer
-                .data
+                .data()
                 .iter()
                 .map(|b| format!("{}", b))
                 .collect::<Vec<String>>()
@@ -711,7 +709,7 @@ fn watcher_cb(apdu_command: &APDUCommand, apdu_answer: &APDUAnswer) {
             );
             let answer = format!(
                 "{{\"data\":[{}], \"retcode\":{}}}",
-                answer_data, apdu_answer.retcode
+                answer_data, apdu_answer.retcode()
             );
             writer.write(&command);
             writer.write(&answer);
@@ -796,7 +794,13 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         false => 0,
     };
 
-    let transport_type = if matches.is_present("recorder") {
+    let transport_type = if is_simulator {
+        iota_ledger::TransportTypes::TCP
+    } else {
+        iota_ledger::TransportTypes::NativeHID
+    };
+
+    if matches.is_present("recorder") {
         if !is_simulator {
             panic!("transport watcher only is supported for the simulator");
         }
@@ -820,12 +824,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         writer.set_format_type(format_type);
         writer.open(String::from(filename.unwrap()))?;
         drop(writer);
-        iota_ledger::TransportTypes::TCPWatcher
-    } else if is_simulator {
-        iota_ledger::TransportTypes::TCP
-    } else {
-        iota_ledger::TransportTypes::NativeHID
-    };
+    }
 
     println!("{} {}", is_simulator, non_interactive);
 

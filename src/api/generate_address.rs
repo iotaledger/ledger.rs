@@ -1,7 +1,6 @@
 use crate::api::packable::{Error as PackableError, Packable, Read, Write};
 
-use ledger_apdu::APDUCommand;
-use ledger_transport::Exchange;
+use ledger_transport::APDUCommand;
 
 use crate::api::{constants, errors, helpers};
 
@@ -37,7 +36,7 @@ impl Packable for Request {
 }
 
 pub fn exec(
-    transport: &dyn Exchange,
+    transport: &crate::Transport,
     show: bool,
     bip32: crate::LedgerBIP32Index,
     count: u32,
