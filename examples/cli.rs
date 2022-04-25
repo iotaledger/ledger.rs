@@ -837,7 +837,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     assert_eq!(DEFAULT_SEED, &seed[..]);
 
     let mut ledger =
-        iota_ledger::get_ledger_by_type(0x80000000, &transport_type, Some(watcher_cb))?;
+        iota_ledger::get_ledger_by_type(0x80000000, &transport_type, if matches.is_present("recorder") { Some(watcher_cb) } else { None })?;
 
     let is_debug_app = ledger.is_debug_app();
     DEBUG_APP.store(is_debug_app, Ordering::Release);
