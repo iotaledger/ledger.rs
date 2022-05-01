@@ -358,14 +358,6 @@ impl LedgerHardwareWallet {
         Ok(addr)
     }
 
-    fn use_single_sign(&self) -> Result<bool, APIError> {
-        let single_sign = match self.device_type() {
-            LedgerDeviceTypes::LedgerNanoS => true,
-            LedgerDeviceTypes::LedgerNanoX => false,
-        };
-        Ok(single_sign)
-    }
-
     /// Prepare Signing
     ///
     /// Uploads the essence, parses and validates it.
@@ -394,12 +386,9 @@ impl LedgerHardwareWallet {
         // write data to the device
         self.write_data_buffer(buffer)?;
 
-        let single_sign = self.use_single_sign()?;
-
         // now validate essence
         api::prepare_signing::exec(
             self.transport(),
-            single_sign,
             has_remainder,
             remainder_index,
             remainder,
@@ -426,40 +415,17 @@ impl LedgerHardwareWallet {
         Ok(())
     }
 
-    /// Sign (internal)
+    /// Sign
     ///
-    /// Generates all signature in one call. Needs additional buffer space.
-    /// Used for the Ledger Nano X
-    fn _sign(&self) -> Result<Vec<u8>, api::errors::APIError> {
-        api::show_flow::show_signing(self.transport())?;
-        thread::sleep(time::Duration::from_millis(500));
-
-        api::sign::exec(self.transport())?;
-
-        let signatures = self.read_data_bufer()?;
-
-        // show "signing successfully" for 500ms
-        api::show_flow::show_for_ms(
-            self.transport(),
-            constants::Flows::FlowSignedSuccessfully,
-            1500,
-        )?;
-
-        Ok(signatures)
-    }
-
-    /// Sign Single (internal)
-    ///
-    /// Generates one signature after the other for each input. Advante is, it doesn't need extra buffer space.
-    /// Used for the Ledger Nano S
-    fn _sign_single(&self, num_inputs: u16) -> Result<Vec<u8>, api::errors::APIError> {
+    /// The publicly usable function for signing an essence. 
+    pub fn sign(&self, num_inputs: u16) -> Result<Vec<u8>, api::errors::APIError> {
         api::show_flow::show_signing(self.transport())?;
         thread::sleep(time::Duration::from_millis(500));
 
         let mut signatures: Vec<u8> = Vec::new();
 
         for signature_idx in 0..num_inputs as u8 {
-            let mut signature = api::sign_single::exec(self.transport(), signature_idx)?;
+            let mut signature = api::sign::exec(self.transport(), signature_idx)?;
             signatures.append(&mut signature.data);
         }
 
@@ -471,19 +437,6 @@ impl LedgerHardwareWallet {
         )?;
 
         Ok(signatures)
-    }
-
-    /// Sign
-    ///
-    /// The publicly usable function for signing an essence. It uses the internal functions _sign and _sign_single depending
-    /// from the device. For the Nano S the _sign_single is used because it needs less RAM. For the Nano X the _sign is used
-    /// because it's faster and RAM shouldn't be much of an issue.
-    pub fn sign(&self, num_inputs: u16) -> Result<Vec<u8>, api::errors::APIError> {
-        let single_sign = self.use_single_sign()?;
-        match single_sign {
-            true => self._sign_single(num_inputs),
-            false => self._sign(),
-        }
     }
 
     // methods only available if compiled with APP_DEBUG flag

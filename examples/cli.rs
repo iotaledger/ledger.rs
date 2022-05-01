@@ -93,7 +93,7 @@ const DEFAULT_KEY_DEBUG: &str = "171167b16cb8dcfa0b4f46e9bbb196cfbb2ee9b5ba7d9f1
 const DEFAULT_KEY: &str = "f14f5bc7f78179df26fed411de31e6e1344f272597972bc975cedff700819d95";
 
 // output-range to test address pooling
-const MAX_INPUT_RANGE: u32 = 100;
+const MAX_INPUT_RANGE: u32 = 10;//100;
 const MAX_OUTPUT_RANGE: u32 = 100;
 const MAX_REMAINDER_RANGE: u32 = 100;
 

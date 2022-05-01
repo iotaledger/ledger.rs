@@ -38,7 +38,6 @@ impl Packable for Request {
 
 pub fn exec(
     transport: &Transport,
-    single_sign: bool,
     has_remainder: bool,
     remainder_index: u16,
     remainder: crate::LedgerBIP32Index,
@@ -55,7 +54,7 @@ pub fn exec(
     let cmd = APDUCommand {
         cla: constants::APDUCLASS,
         ins: constants::APDUInstructions::PrepareSigning as u8,
-        p1: if single_sign { 1 } else { 0 },
+        p1: 1, // compatibility
         p2: if has_remainder { 1 } else { 0 },
         data: buf,
     };
