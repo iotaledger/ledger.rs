@@ -14,7 +14,6 @@ pub(crate) mod reset;
 pub(crate) mod set_account;
 pub(crate) mod set_non_interactive_mode;
 pub(crate) mod show_flow;
-pub(crate) mod sign;
 pub(crate) mod sign_single;
 pub(crate) mod user_confirm;
 pub(crate) mod write_data_block;
