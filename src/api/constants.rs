@@ -20,6 +20,7 @@ pub enum APDUInstructions {
     ClearDataBuffer = 0x83,
 
     ShowFlow = 0x90,
+    PrepareBlindsigning = 0x91,
 
     // iota specific crypto instructions
     PrepareSigning = 0xa0,

@@ -140,6 +140,7 @@ pub fn get_seed() -> [u8; 64] {
     mnemonic.to_seed("")
 }
 pub fn get_key(
+    chain: u32,
     seed: &[u8],
     account: u32,
     index: LedgerBIP32Index,
@@ -148,7 +149,7 @@ pub fn get_key(
 
     let path = format!(
         "44'/{}'/{}'/{}'/{}'",
-        if !is_debug_app { 0x107a } else { 0x1 },
+        if !is_debug_app { chain } else { 0x1 },
         account & !0x80000000,
         index.bip32_change & !0x80000000,
         index.bip32_index & !0x80000000
@@ -168,11 +169,12 @@ pub fn get_addr_from_pubkey(pubkey: [u8; 32]) -> [u8; 32] {
 }
 
 pub fn get_addr(
+    chain: u32,
     seed: &[u8],
     account: u32,
     index: LedgerBIP32Index,
 ) -> Result<[u8; 32], slip10::Error> {
-    let key = get_key(&seed, account, index)?;
+    let key = get_key(chain, &seed, account, index)?;
     let pubkey = key.public_key();
     let mut truncated = [0u8; 32];
     truncated.clone_from_slice(&pubkey[1..33]);
@@ -200,24 +202,12 @@ pub struct OutputIndexRecorder {
     pub is_remainder: bool,
 }
 
-/// Gets the unlock blocks for a transaction.
-pub fn get_transaction_unlock_blocks(
+pub fn get_transaction_unlock_blocks_essence_hash(
+    chain: u32,
     account: u32,
-    essence: &RegularEssence,
+    essence_hash: [u8;32],
     address_index_recorders: &mut [InputIndexRecorder],
 ) -> Result<Vec<UnlockBlock>> {
-    let mut serialized_essence = Vec::new();
-    Essence::from(essence.clone())
-        .pack(&mut serialized_essence)
-        .map_err(|_| anyhow::anyhow!("invalid parameter: inputs"))?;
-
-    let mut hasher = VarBlake2b::new(32).unwrap();
-    hasher.update(serialized_essence);
-    let mut hashed_essence: [u8; 32] = [0; 32];
-    hasher.finalize_variable(|res| {
-        hashed_essence[..32].clone_from_slice(&res[..32]);
-    });
-
     let seed = get_seed();
     let mut unlock_blocks = vec![];
     let mut signature_indexes = HashMap::<LedgerBIP32Index, usize>::new();
@@ -246,7 +236,7 @@ pub fn get_transaction_unlock_blocks(
             ));
         } else {
             // If not, we should create a signature unlock block
-            let private_key = get_key(&seed, account, recorder.bip32_index).unwrap();
+            let private_key = get_key(chain, &seed, account, recorder.bip32_index).unwrap();
 
             let iota_priv_key = ed25519::SecretKey::from_bytes(private_key.key);
 
@@ -256,7 +246,7 @@ pub fn get_transaction_unlock_blocks(
             public_key_trunc.clone_from_slice(&public_key[1..33]);
 
             // The block should sign the entire transaction essence part of the transaction payload
-            let signature = Box::new(iota_priv_key.sign(&hashed_essence).to_bytes());
+            let signature = Box::new(iota_priv_key.sign(&essence_hash).to_bytes());
             unlock_blocks.push(UnlockBlock::Signature(SignatureUnlock::Ed25519(
                 Ed25519Signature::new(public_key_trunc, *signature),
             )));
@@ -273,11 +263,186 @@ pub fn get_transaction_unlock_blocks(
     Ok(unlock_blocks)
 }
 
-pub fn random_essence(
+/// Gets the unlock blocks for a transaction.
+pub fn get_transaction_unlock_blocks(
+    chain: u32,
+    account: u32,
+    essence: &RegularEssence,
+    address_index_recorders: &mut [InputIndexRecorder],
+) -> Result<Vec<UnlockBlock>> {
+    let mut serialized_essence = Vec::new();
+    Essence::from(essence.clone())
+        .pack(&mut serialized_essence)
+        .map_err(|_| anyhow::anyhow!("invalid parameter: inputs"))?;
+
+    let mut hasher = VarBlake2b::new(32).unwrap();
+    hasher.update(serialized_essence);
+    let mut hashed_essence: [u8; 32] = [0; 32];
+    hasher.finalize_variable(|res| {
+        hashed_essence[..32].clone_from_slice(&res[..32]);
+    });
+    get_transaction_unlock_blocks_essence_hash(chain, account, hashed_essence, address_index_recorders)
+}
+
+
+
+pub fn test_blindsigning(
+    hrp: &str,
+    chain: u32,
     ledger: &mut iota_ledger::LedgerHardwareWallet,
     seed: &[u8],
     rnd: &mut SmallRng,
     non_interactive: bool,
+    blindsigning: bool,
+) -> Result<bool, Box<dyn Error>> {
+    // build random config
+    let num_inputs = rnd.next_u32() as u16 % 10 /*MAX_INPUTS*/ + 1;
+
+
+    let config = format!(
+        "{}",
+        num_inputs,
+    );
+
+    let mut hm = HASHMAP.lock().unwrap();
+
+    let is_new = match hm.get(&config) {
+        Some(_) => false,
+        None => {
+            hm.insert(config.clone(), true);
+            true
+        }
+    };
+    drop(hm);
+    if !is_new {
+        return Ok(false);
+    }
+
+    let mut essence_hash = [0u8; 32];
+    rnd.fill_bytes(&mut essence_hash);
+
+    #[allow(clippy::modulo_one)]
+    let account = (rnd.next_u32() % MAX_ACCOUNT_RANGE) | HARDENED;
+    println!("account: 0x{:08x}", account & !0x80000000);
+
+    // get new ledger object (for testing)
+    ledger.set_account(chain, account)?;
+
+    let mut address_index_recorders: Vec<InputIndexRecorder> = Vec::new();
+
+    // Gets the unlock blocks for a transaction.
+    let ref_blocks =
+        get_transaction_unlock_blocks_essence_hash(chain, account, essence_hash, &mut address_index_recorders).unwrap();
+
+
+    let mut key_indices: Vec<LedgerBIP32Index> = Vec::new();
+    let mut key_strings: Vec<String> = Vec::new();
+
+    for i in 0..num_inputs {
+        let is_change = rnd.next_u32() & 0x1 == 0x1;
+        let input_bip32_index = LedgerBIP32Index {
+            bip32_index: (rnd.next_u32() % MAX_INPUT_RANGE) | HARDENED,
+            bip32_change: if is_change { 1 } else { 0 } | HARDENED,
+        };
+
+        let input_addr_bytes: [u8; 32] = *ledger
+            .get_addresses(false, input_bip32_index, 1)
+            .expect("error get new address")
+            .first()
+            .unwrap();
+
+        let mut addr_bytes_with_type = [0u8; 33];
+        addr_bytes_with_type[0] = 0; // ed25519
+        addr_bytes_with_type[1..33].clone_from_slice(&input_addr_bytes[..]);
+        let b32 = bech32::encode(hrp, addr_bytes_with_type.to_base32()).unwrap();
+
+        key_indices.push(input_bip32_index);
+        key_strings.push(b32.clone());
+    }
+
+    println!("essence_hash: {}", hex(&essence_hash));
+
+    println!("new configuration: {}", config);
+
+
+    // prepare signing in signgle-signing mode (ssm will be the default when finished)
+    ledger
+        .prepare_blindsigning(
+            key_indices,
+            essence_hash.to_vec(),
+        )
+        .expect("error prepare blindsigning");
+
+    // show essence to user
+    if ledger.is_debug_app() {
+        ledger.set_non_interactive_mode(non_interactive)?;
+    }
+    ledger.user_confirm().expect("error user confirm");
+
+    println!();
+    // sign
+    let signature_bytes = ledger.sign(num_inputs).expect("error signing");
+    println!("signature: {}", hex(&signature_bytes));
+    println!();
+   
+
+    // unpack all signatures to vector
+    let mut readable = &mut &*signature_bytes;
+    for t in 0..num_inputs {
+        let signature = UnlockBlock::unpack(&mut readable).expect("error unpacking signature");
+
+        let signature2 = ref_blocks.get(t as usize).unwrap();
+
+        assert_eq!(&signature, signature2);
+
+        match signature {
+            UnlockBlock::Signature(s) => {
+                match s {
+                    SignatureUnlock::Ed25519(s) => {
+                        let sig: [u8; 64] = s.signature().try_into()?;
+                        let sig = ed25519::Signature::from_bytes(sig);
+
+                        let pub_key_bytes = s.public_key();
+
+                        let addr_bytes = get_addr_from_pubkey(*pub_key_bytes);
+                        let mut addr_bytes_with_type = [0u8; 33];
+                        addr_bytes_with_type[0] = 0; // ed25519
+                        addr_bytes_with_type[1..33].clone_from_slice(&addr_bytes[..]);
+                        let b32 = bech32::encode(hrp, addr_bytes_with_type.to_base32()).unwrap();
+                        //                        println!("{} vs {}", b32, key_strings.get(t as usize).unwrap());
+
+                        assert_eq!(b32, *key_strings.get(t as usize).unwrap());
+
+                        let pub_key =
+                            ed25519::PublicKey::try_from_bytes(*pub_key_bytes).unwrap();
+
+                        if !pub_key.verify(&sig, &essence_hash) {
+                            panic!("error verifying signature");
+                        }
+
+                        println!("found valid signature");
+                    }
+                }
+            }
+            UnlockBlock::Reference(_) => {
+                // NOP
+                println!("found reference");
+            }
+        }
+    }
+
+    Ok(true)
+}
+
+
+pub fn random_essence(
+    hrp: &str,
+    chain: u32,
+    ledger: &mut iota_ledger::LedgerHardwareWallet,
+    seed: &[u8],
+    rnd: &mut SmallRng,
+    non_interactive: bool,
+    blindsigning: bool,
 ) -> Result<bool, Box<dyn Error>> {
     // build random config
     let num_inputs = rnd.next_u32() as u16 % MAX_INPUTS + 1;
@@ -321,13 +486,7 @@ pub fn random_essence(
     println!("account: 0x{:08x}", account & !0x80000000);
 
     // get new ledger object (for testing)
-    ledger.set_account(account)?;
-
-    let hrp: &str = if !ledger.is_debug_app() {
-        "iota"
-    } else {
-        "atoi"
-    };
+    ledger.set_account(0x107a, account)?;
 
     let mut address_index_recorders: Vec<InputIndexRecorder> = Vec::new();
 
@@ -410,7 +569,7 @@ pub fn random_essence(
         addr_bytes_with_type[1..33].clone_from_slice(&output_addr_bytes[..]);
         let b32 = bech32::encode(hrp, addr_bytes_with_type.to_base32()).unwrap();
 
-        let cmp_addr = get_addr(&seed, account, output_bip32_index).unwrap();
+        let cmp_addr = get_addr(chain, &seed, account, output_bip32_index).unwrap();
         addr_bytes_with_type[1..33].clone_from_slice(&cmp_addr[..]);
         let cmp_b32 = bech32::encode(hrp, addr_bytes_with_type.to_base32()).unwrap();
 
@@ -479,7 +638,7 @@ pub fn random_essence(
             is_remainder: true,
         });
 
-        let cmp_addr = get_addr(&seed, account, remainder_bip32).unwrap();
+        let cmp_addr = get_addr(chain, &seed, account, remainder_bip32).unwrap();
         addr_bytes_with_type[1..33].clone_from_slice(&cmp_addr[..]);
         let cmp_b32 = bech32::encode(hrp, addr_bytes_with_type.to_base32()).unwrap();
 
@@ -562,7 +721,7 @@ pub fn random_essence(
 
     // Gets the unlock blocks for a transaction.
     let ref_blocks =
-        get_transaction_unlock_blocks(account, &essence, &mut address_index_recorders).unwrap();
+        get_transaction_unlock_blocks(chain, account, &essence, &mut address_index_recorders).unwrap();
 
     let mut key_indices: Vec<LedgerBIP32Index> = Vec::new();
     let mut key_strings_new: Vec<String> = Vec::new();
@@ -750,6 +909,14 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                 .takes_value(false),
         )
         .arg(
+            Arg::with_name("blindsigning")
+                .short("b")
+                .long("blindsigning")
+                .value_name("blindsigning")
+                .help("use blindsigning")
+                .takes_value(false),
+        )        
+        .arg(
             Arg::with_name("non-interactive")
                 .short("n")
                 .long("non-interactive")
@@ -785,6 +952,13 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                 .help("maximum number of tests done")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("coin-type")
+                .short("c")
+                .long("coin-type")
+                .help("select coin type (iota, smr)")
+                .takes_value(true),
+        )          
         .get_matches();
 
     let is_simulator = matches.is_present("is-simulator");
@@ -828,6 +1002,8 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         drop(writer);
     }
 
+    let blindsigning = matches.is_present("blindsigning");
+    
     println!("{} {}", is_simulator, non_interactive);
 
     let mut rnd = SmallRng::from_seed(PRNG_SEED);
@@ -836,15 +1012,27 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
     assert_eq!(DEFAULT_SEED, &seed[..]);
 
+    let mut hrp;
+    let prh;
+    let mut chain;
+    (hrp, prh, chain) = match matches.value_of("coin-type") {
+        Some(c) => match c {
+            "iota" => ("iota", "atoi", 0x107a),
+            "smr" => ("smr", "rms", 0x107b),
+            _ => panic!("unknown coin type"),
+        },
+        None => ("iota", "atoi", 0x107a),
+    };
+
     let mut ledger =
-        iota_ledger::get_ledger_by_type(0x80000000, &transport_type, if matches.is_present("recorder") { Some(watcher_cb) } else { None })?;
+        iota_ledger::get_ledger_by_type(chain, 0x80000000, &transport_type, if matches.is_present("recorder") { Some(watcher_cb) } else { None })?;
 
     let is_debug_app = ledger.is_debug_app();
     DEBUG_APP.store(is_debug_app, Ordering::Release);
 
     let path = format!(
         "44'/{}'/{}'/{}'/{}'",
-        if !is_debug_app { 0x107a } else { 0x1 },
+        if !is_debug_app { chain } else { 0x1 },
         0,
         0,
         0
@@ -861,7 +1049,11 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
     let mut run: u32 = 0;
     for _ in 0..10000 {
-        let was_new = random_essence(&mut ledger, &seed, &mut rnd, non_interactive)?;
+
+        let was_new = match blindsigning {
+            false => random_essence(hrp, chain, &mut ledger, &seed, &mut rnd, non_interactive, blindsigning)?,
+            true => test_blindsigning(hrp, chain, &mut ledger, &seed, &mut rnd, non_interactive, blindsigning)?,
+        };
         if was_new {
             run += 1;
             println!("\nrun {} successful\n", run);

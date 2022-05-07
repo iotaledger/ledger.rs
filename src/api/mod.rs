@@ -9,6 +9,7 @@ pub(crate) mod get_data_buffer_state;
 pub(crate) mod helpers;
 pub(crate) mod packable;
 pub(crate) mod prepare_signing;
+pub(crate) mod prepare_blindsigning;
 pub(crate) mod read_data_block;
 pub(crate) mod reset;
 pub(crate) mod set_account;

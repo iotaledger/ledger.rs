@@ -32,7 +32,7 @@ impl Packable for Request {
     }
 }
 
-pub fn exec(transport: &Transport, account: u32) -> Result<(), errors::APIError> {
+pub fn exec(coin_type: u32, transport: &Transport, account: u32) -> Result<(), errors::APIError> {
     let req = Request {
         bip32_account: account,
     };
@@ -40,10 +40,16 @@ pub fn exec(transport: &Transport, account: u32) -> Result<(), errors::APIError>
     let mut buf = Vec::new();
     let _ = req.pack(&mut buf);
 
+    let app_mode = match coin_type {
+        0x107a => 0x00, // iota + chrysalis
+        0x107b => 0x03, // shimmer + stardust
+        _ => return Err(errors::APIError::IncorrectP1P2)
+    };
+
     let cmd = APDUCommand {
         cla: constants::APDUCLASS,
         ins: constants::APDUInstructions::SetAccount as u8,
-        p1: 0,
+        p1: app_mode,
         p2: 0,
         data: buf,
     };

@@ -51,8 +51,9 @@ impl Packable for LedgerBIP32Index {
 }
 
 pub enum LedgerDeviceTypes {
-    LedgerNanoX,
     LedgerNanoS,
+    LedgerNanoSPlus,
+    LedgerNanoX,
 }
 
 pub struct LedgerHardwareWallet {
@@ -65,6 +66,7 @@ pub struct LedgerHardwareWallet {
 
 /// Get Ledger by transport_type
 pub fn get_ledger_by_type(
+    coin_type: u32,
     bip32_account: u32,
     transport_type: &TransportTypes,
     callback: Option<crate::transport::transport_tcp::Callback>,
@@ -72,7 +74,7 @@ pub fn get_ledger_by_type(
     let ledger = crate::LedgerHardwareWallet::new(transport_type, callback)?;
 
     // set account
-    ledger.set_account(bip32_account)?;
+    ledger.set_account(coin_type, bip32_account)?;
 
     Ok(Box::new(ledger))
 }
@@ -104,6 +106,7 @@ pub fn exit_app(transport_type: &TransportTypes) -> Result<(), APIError> {
 /// If is_simulator is true, you will get a TCP transfer for use with Speculos
 /// If it's false, you will get a native USB HID transfer for real devices
 pub fn get_ledger(
+    coin_type: u32,
     bip32_account: u32,
     is_simulator: bool,
 ) -> Result<Box<LedgerHardwareWallet>, APIError> {
@@ -111,7 +114,7 @@ pub fn get_ledger(
         true => TransportTypes::TCP,
         false => TransportTypes::NativeHID,
     };
-    get_ledger_by_type(bip32_account, &transport_type, None)
+    get_ledger_by_type(coin_type, bip32_account, &transport_type, None)
 }
 
 impl LedgerHardwareWallet {
@@ -138,6 +141,7 @@ impl LedgerHardwareWallet {
         let device_type = match res.device {
             0 => LedgerDeviceTypes::LedgerNanoS,
             1 => LedgerDeviceTypes::LedgerNanoX,
+            2 => LedgerDeviceTypes::LedgerNanoSPlus,
             _ => {
                 return Err(APIError::Unknown);
             }
@@ -280,8 +284,8 @@ impl LedgerHardwareWallet {
     /// third component of the BIP32 path. The account index remains valid until the API is reset.
     ///
     /// The MSB (=hardened) always must be set.
-    pub fn set_account(&self, bip32_account: u32) -> Result<(), APIError> {
-        api::set_account::exec(self.transport(), bip32_account)?;
+    pub fn set_account(&self, coin_type: u32, bip32_account: u32) -> Result<(), APIError> {
+        api::set_account::exec(coin_type, self.transport(), bip32_account)?;
         Ok(())
     }
 
@@ -406,6 +410,44 @@ impl LedgerHardwareWallet {
         Ok(())
     }
 
+        /// Prepare Signing
+    ///
+    /// Uploads the essence, parses and validates it.
+    pub fn prepare_blindsigning(
+        &self,
+        key_indices: Vec<LedgerBIP32Index>,
+        essence_hash: Vec<u8>,
+    ) -> Result<(), api::errors::APIError> {
+        // clone buffer because we have to add the key indices after the essence
+        let mut buffer: Vec<u8> = essence_hash.to_vec();
+        let key_number: u16 = key_indices.len() as u16;
+        key_number.pack(&mut buffer).map_err(|_| APIError::Unknown)?;
+        
+        for key in key_indices.iter() {
+            key.pack(&mut buffer).map_err(|_| APIError::Unknown)?;
+        }
+        let buffer_len = buffer.len();
+
+        // write data to the device
+        self.write_data_buffer(buffer)?;
+
+        // now validate essence
+        api::prepare_blindsigning::exec(
+            self.transport(),
+        )?;
+
+        // get buffer state
+        let dbs = api::get_data_buffer_state::exec(self.transport())?;
+
+        // if recognized length is not the buffer_len, something went wrong
+        // during parsing
+        if dbs.data_length != buffer_len as u16 {
+            return Err(APIError::Unknown);
+        }
+
+        Ok(())
+    }
+
     /// User Confirm
     ///
     /// Displays the (parsed and validated) essence in human readable form on the screen of the
@@ -507,7 +549,7 @@ mod tests {
         is_simulator: bool,
         non_interactive: bool,
     ) -> Result<(), Box<dyn Error>> {
-        let ledger = crate::get_ledger(ACCOUNT, is_simulator)?;
+        let ledger = crate::get_ledger(0x107a, ACCOUNT, is_simulator)?;
 
         if non_interactive && !ledger.is_debug_app() {
             panic!("app not compiled in is_debug_app mode");

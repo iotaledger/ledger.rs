@@ -25,6 +25,13 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                 .help("select the simulator as transport")
                 .takes_value(false),
         )
+        .arg(
+            Arg::with_name("coin-type")
+                .short("c")
+                .long("coin-type")
+                .help("select coin type (iota, smr)")
+                .takes_value(true),
+        )        
         .get_matches();
 
     let is_simulator = matches.is_present("is-simulator");
@@ -34,12 +41,23 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     } else {
         iota_ledger::TransportTypes::NativeHID
     };
+    let mut hrp;
+    let prh;
+    let mut chain;
+    (hrp, prh, chain) = match matches.value_of("coin-type") {
+        Some(c) => match c {
+            "iota" => ("iota", "atoi", 0x107a),
+            "smr" => ("smr", "rms", 0x107b),
+            _ => panic!("unknown coin type"),
+        },
+        None => ("iota", "atoi", 0x107a),
+    };
 
-    let ledger = iota_ledger::get_ledger_by_type(BIP32_ACCOUNT, &transport_type, None)?;
+    let ledger = iota_ledger::get_ledger_by_type(chain, BIP32_ACCOUNT, &transport_type, None)?;
 
-    let (hrp, chain) = match !ledger.is_debug_app() {
-        true => ("iota", 0x107a),
-        false => ("atoi", 0x1),
+    (hrp, chain) = match ledger.is_debug_app() {
+        true => (prh, 0x1),
+        false => (hrp, chain),
     };
 
     let bip32_indices = LedgerBIP32Index {

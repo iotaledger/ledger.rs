@@ -113,6 +113,14 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                 .help("select the simulator as transport")
                 .takes_value(false),
         )
+        .arg(
+            Arg::with_name("coin-type")
+                .short("c")
+                .long("coin-type")
+                .value_name("coin_type")
+                .help("select coin type (iota, smr)")
+                .takes_value(true),
+        )
         .get_matches();
 
     let is_simulator = matches.is_present("is-simulator");
@@ -123,7 +131,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         iota_ledger::TransportTypes::NativeHID
     };
 
-    let ledger = iota_ledger::get_ledger_by_type(BIP32_ACCOUNT, &transport_type, None)?;
+    let ledger = iota_ledger::get_ledger_by_type(0x107a, BIP32_ACCOUNT, &transport_type, None)?;
 
     let (hrp, chain) = match !ledger.is_debug_app() {
         true => ("iota", 0x107a),
