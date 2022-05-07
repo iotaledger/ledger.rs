@@ -202,6 +202,41 @@ pub struct OutputIndexRecorder {
     pub is_remainder: bool,
 }
 
+pub fn get_transaction_unlock_blocks_blindsigning_essence_hash(
+    chain: u32,
+    account: u32,
+    essence_hash: [u8;32],
+    address_indices: &[LedgerBIP32Index],
+) -> Result<Vec<UnlockBlock>> {
+    let seed = get_seed();
+    let mut unlock_blocks = vec![];
+    for (_, bip32_index) in address_indices.iter().enumerate() {
+        // If not, we should create a signature unlock block
+        let private_key = get_key(chain, &seed, account, *bip32_index).unwrap();
+
+        let iota_priv_key = ed25519::SecretKey::from_bytes(private_key.key);
+
+        let public_key = private_key.public_key();
+        let mut public_key_trunc = [0u8; 32];
+
+        public_key_trunc.clone_from_slice(&public_key[1..33]);
+
+        // The block should sign the entire transaction essence part of the transaction payload
+        let signature = Box::new(iota_priv_key.sign(&essence_hash).to_bytes());
+        unlock_blocks.push(UnlockBlock::Signature(SignatureUnlock::Ed25519(
+            Ed25519Signature::new(public_key_trunc, *signature),
+        )));
+        log::info!(
+            "put {:08x}:{:08x} into signatures_indexes",
+            bip32_index.bip32_change,
+            bip32_index.bip32_index,
+        );
+        // Update current block index
+    }
+    Ok(unlock_blocks)
+}
+
+
 pub fn get_transaction_unlock_blocks_essence_hash(
     chain: u32,
     account: u32,
@@ -330,15 +365,19 @@ pub fn test_blindsigning(
 
     let mut address_index_recorders: Vec<InputIndexRecorder> = Vec::new();
 
-    // Gets the unlock blocks for a transaction.
-    let ref_blocks =
-        get_transaction_unlock_blocks_essence_hash(chain, account, essence_hash, &mut address_index_recorders).unwrap();
 
 
     let mut key_indices: Vec<LedgerBIP32Index> = Vec::new();
     let mut key_strings: Vec<String> = Vec::new();
 
     for i in 0..num_inputs {
+        let mut txid = [0u8; 32];
+        rnd.fill_bytes(&mut txid);
+
+        let input = Input::Utxo(
+            UtxoInput::new(TransactionId::from(txid), rnd.next_u32() as u16 % 127).unwrap(),
+        );        
+
         let is_change = rnd.next_u32() & 0x1 == 0x1;
         let input_bip32_index = LedgerBIP32Index {
             bip32_index: (rnd.next_u32() % MAX_INPUT_RANGE) | HARDENED,
@@ -358,8 +397,18 @@ pub fn test_blindsigning(
 
         key_indices.push(input_bip32_index);
         key_strings.push(b32.clone());
+
+        address_index_recorders.push(InputIndexRecorder {
+            address_index: i as usize,
+            bip32_index: input_bip32_index,
+            input,
+            bech32: b32.clone(),
+        });        
     }
 
+    // Gets the unlock blocks for a transaction.
+    let ref_blocks =
+    get_transaction_unlock_blocks_blindsigning_essence_hash(chain, account, essence_hash, &key_indices).unwrap();
     println!("essence_hash: {}", hex(&essence_hash));
 
     println!("new configuration: {}", config);
@@ -392,7 +441,7 @@ pub fn test_blindsigning(
         let signature = UnlockBlock::unpack(&mut readable).expect("error unpacking signature");
 
         let signature2 = ref_blocks.get(t as usize).unwrap();
-
+ 
         assert_eq!(&signature, signature2);
 
         match signature {
