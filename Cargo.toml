@@ -9,9 +9,9 @@ futures = "0.3.6"
 log = "0.4.11"
 thiserror = "1.0.20"
 enum-iterator = "0.6.0"
-ledger-apdu = { git = "https://github.com/iotaledger/ledger-rs", rev="6eda5f9f158fde9c623039b654bbc6e5b093c98f" }
-ledger-transport-hid = { git = "https://github.com/iotaledger/ledger-rs", rev="6eda5f9f158fde9c623039b654bbc6e5b093c98f" }
-ledger-transport = { git = "https://github.com/iotaledger/ledger-rs", rev="6eda5f9f158fde9c623039b654bbc6e5b093c98f" }
+ledger-apdu = { git = "https://github.com/iotaledger/ledger-rs", rev="e3e519a3562c4917ad311547ea3f4dbdee5d44ae" }
+ledger-transport-hid = { git = "https://github.com/iotaledger/ledger-rs", rev="e3e519a3562c4917ad311547ea3f4dbdee5d44ae" }
+ledger-transport = { git = "https://github.com/iotaledger/ledger-rs", rev="e3e519a3562c4917ad311547ea3f4dbdee5d44ae" }
 
 serde = { version = "1.0", features = ["derive"] }
 bech32 = "0.7.2"
