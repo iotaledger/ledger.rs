@@ -1,13 +1,9 @@
-use crate::api::packable::{Error as PackableError, Packable, Read, Write};
-
-use ledger_apdu::APDUCommand;
 use crate::Transport;
+use ledger_apdu::APDUCommand;
 
 use crate::api::{constants, errors, helpers};
 
-pub fn exec(
-    transport: &Transport,
-) -> Result<(), errors::APIError> {
+pub fn exec(transport: &Transport) -> Result<(), errors::APIError> {
     let cmd = APDUCommand {
         cla: constants::APDUCLASS,
         ins: constants::APDUInstructions::PrepareBlindsigning as u8,

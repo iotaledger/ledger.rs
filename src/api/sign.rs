@@ -1,5 +1,5 @@
-use ledger_apdu::APDUCommand;
 use crate::Transport;
+use ledger_apdu::APDUCommand;
 
 use crate::api::packable::{Error as PackableError, Packable, Read, Write};
 
@@ -37,12 +37,12 @@ impl Packable for ResponseVec {
         let mut expected_length = match signature_type {
             0 => SIGNATURE_UNLOCK_BLOCK_LENGTH,
             1 => REFERENCE_UNLOCK_BLOCK_LENGTH,
-            0x80 => SIGNATURE_UNLOCK_BLOCK_LENGTH,  // blindsigning & signature unlock block
+            0x80 => SIGNATURE_UNLOCK_BLOCK_LENGTH, // blindsigning & signature unlock block
             _ => {
                 return Err(PackableError::InvalidVariant);
             }
         };
- 
+
         expected_length -= 1;
         data.push(signature_type & !0x80);
 
@@ -60,10 +60,7 @@ impl Packable for ResponseVec {
     }
 }
 
-pub fn exec(
-    transport: &Transport,
-    signature_index: u8,
-) -> Result<ResponseVec, errors::APIError> {
+pub fn exec(transport: &Transport, signature_index: u8) -> Result<ResponseVec, errors::APIError> {
     let cmd = APDUCommand {
         cla: constants::APDUCLASS,
         ins: constants::APDUInstructions::SignSingle as u8,

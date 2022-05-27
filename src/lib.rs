@@ -11,14 +11,13 @@ use crate::api::constants;
 use crate::api::constants::DataTypeEnum;
 use crate::api::errors::APIError;
 
-pub use crate::transport::{Transport, TransportTypes};
 pub use crate::transport::transport_tcp::Callback;
+pub use crate::transport::{Transport, TransportTypes};
 
 use crate::api::packable::{Error as PackableError, Packable, Read, Write};
 
 pub mod api;
 pub mod transport;
-
 
 const MINIMUM_APP_VERSION: u32 = 6002;
 
@@ -86,6 +85,16 @@ pub fn get_opened_app(transport_type: &TransportTypes) -> Result<(String, String
 
     let app = crate::api::app_get_name::exec(&transport)?;
     Ok((app.app, app.version))
+}
+
+pub fn get_app_config(
+    transport_type: &TransportTypes,
+) -> Result<api::get_app_config::Response, APIError> {
+    let transport = crate::transport::create_transport(transport_type, None)?;
+
+    let app_config = crate::api::get_app_config::exec(&transport)?;
+
+    Ok(app_config)
 }
 
 /// Open app on the nano s/x
@@ -391,12 +400,7 @@ impl LedgerHardwareWallet {
         self.write_data_buffer(buffer)?;
 
         // now validate essence
-        api::prepare_signing::exec(
-            self.transport(),
-            has_remainder,
-            remainder_index,
-            remainder,
-        )?;
+        api::prepare_signing::exec(self.transport(), has_remainder, remainder_index, remainder)?;
 
         // get buffer state
         let dbs = api::get_data_buffer_state::exec(self.transport())?;
@@ -410,7 +414,7 @@ impl LedgerHardwareWallet {
         Ok(())
     }
 
-        /// Prepare Signing
+    /// Prepare Signing
     ///
     /// Uploads the essence, parses and validates it.
     pub fn prepare_blindsigning(
@@ -421,8 +425,10 @@ impl LedgerHardwareWallet {
         // clone buffer because we have to add the key indices after the essence
         let mut buffer: Vec<u8> = essence_hash.to_vec();
         let key_number: u16 = key_indices.len() as u16;
-        key_number.pack(&mut buffer).map_err(|_| APIError::Unknown)?;
-        
+        key_number
+            .pack(&mut buffer)
+            .map_err(|_| APIError::Unknown)?;
+
         for key in key_indices.iter() {
             key.pack(&mut buffer).map_err(|_| APIError::Unknown)?;
         }
@@ -432,9 +438,7 @@ impl LedgerHardwareWallet {
         self.write_data_buffer(buffer)?;
 
         // now validate essence
-        api::prepare_blindsigning::exec(
-            self.transport(),
-        )?;
+        api::prepare_blindsigning::exec(self.transport())?;
 
         // get buffer state
         let dbs = api::get_data_buffer_state::exec(self.transport())?;
@@ -459,7 +463,7 @@ impl LedgerHardwareWallet {
 
     /// Sign
     ///
-    /// The publicly usable function for signing an essence. 
+    /// The publicly usable function for signing an essence.
     pub fn sign(&self, num_inputs: u16) -> Result<Vec<u8>, api::errors::APIError> {
         api::show_flow::show_signing(self.transport())?;
         thread::sleep(time::Duration::from_millis(500));
@@ -514,7 +518,7 @@ mod tests {
 
     use serial_test::serial;
 
-    const HARDENED : u32 = 0x80000000;
+    const HARDENED: u32 = 0x80000000;
     const ACCOUNT: u32 = 0 | HARDENED;
 
     #[derive(Debug, Clone)]

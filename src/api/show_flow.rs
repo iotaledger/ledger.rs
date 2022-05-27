@@ -1,7 +1,7 @@
 use std::{thread, time};
 
-use ledger_apdu::APDUCommand;
 use crate::Transport;
+use ledger_apdu::APDUCommand;
 
 use crate::api::{constants, errors, helpers};
 

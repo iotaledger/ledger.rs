@@ -1,5 +1,5 @@
-use ledger_apdu::APDUCommand;
 use crate::Transport;
+use ledger_apdu::APDUCommand;
 
 use crate::api::{constants, errors, helpers};
 
@@ -43,7 +43,7 @@ pub fn exec(coin_type: u32, transport: &Transport, account: u32) -> Result<(), e
     let app_mode = match coin_type {
         0x107a => 0x00, // iota + chrysalis
         0x107b => 0x03, // shimmer + stardust
-        _ => return Err(errors::APIError::IncorrectP1P2)
+        _ => return Err(errors::APIError::IncorrectP1P2),
     };
 
     let cmd = APDUCommand {

@@ -47,7 +47,7 @@ pub fn get_key(
     let bip32_path = slip10::path::BIP32Path::from_str(&path)?;
     slip10::derive_key_from_path(seed, slip10::Curve::Ed25519, &bip32_path)
 }
- 
+
 /// get address from pubkey
 pub fn get_addr_from_pubkey(pubkey: [u8; 32]) -> [u8; 32] {
     let mut hasher = VarBlake2b::new(32).unwrap();

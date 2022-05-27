@@ -1,10 +1,9 @@
-pub mod transport_tcp;
 pub mod errors;
+pub mod transport_tcp;
 
-use ledger::TransportNativeHID;
-use crate::transport::transport_tcp::{TransportTCP, Callback};
+use crate::transport::transport_tcp::{Callback, TransportTCP};
 use crate::APIError;
-
+use ledger::TransportNativeHID;
 
 #[derive(Copy, Clone)]
 #[allow(clippy::upper_case_acronyms)]
@@ -18,7 +17,6 @@ pub enum Transport {
     TCP(TransportTCP),
     NativeHID(TransportNativeHID),
 }
-
 
 impl Transport {
     pub(crate) async fn exchange(
@@ -44,9 +42,9 @@ pub fn create_transport(
 ) -> Result<Transport, APIError> {
     let transport = match transport_type {
         TransportTypes::TCP => Transport::TCP(TransportTCP::new("127.0.0.1", 9999, callback)),
-        TransportTypes::NativeHID => Transport::NativeHID(
-            TransportNativeHID::new().map_err(|_| APIError::TransportError)?,
-        ),
+        TransportTypes::NativeHID => {
+            Transport::NativeHID(TransportNativeHID::new().map_err(|_| APIError::TransportError)?)
+        }
     };
     Ok(transport)
 }

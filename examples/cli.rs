@@ -93,7 +93,7 @@ const DEFAULT_KEY_DEBUG: &str = "171167b16cb8dcfa0b4f46e9bbb196cfbb2ee9b5ba7d9f1
 const DEFAULT_KEY: &str = "f14f5bc7f78179df26fed411de31e6e1344f272597972bc975cedff700819d95";
 
 // output-range to test address pooling
-const MAX_INPUT_RANGE: u32 = 10;//100;
+const MAX_INPUT_RANGE: u32 = 10; //100;
 const MAX_OUTPUT_RANGE: u32 = 100;
 const MAX_REMAINDER_RANGE: u32 = 100;
 
@@ -205,7 +205,7 @@ pub struct OutputIndexRecorder {
 pub fn get_transaction_unlock_blocks_blindsigning_essence_hash(
     chain: u32,
     account: u32,
-    essence_hash: [u8;32],
+    essence_hash: [u8; 32],
     address_indices: &[LedgerBIP32Index],
 ) -> Result<Vec<UnlockBlock>> {
     let seed = get_seed();
@@ -236,11 +236,10 @@ pub fn get_transaction_unlock_blocks_blindsigning_essence_hash(
     Ok(unlock_blocks)
 }
 
-
 pub fn get_transaction_unlock_blocks_essence_hash(
     chain: u32,
     account: u32,
-    essence_hash: [u8;32],
+    essence_hash: [u8; 32],
     address_index_recorders: &mut [InputIndexRecorder],
 ) -> Result<Vec<UnlockBlock>> {
     let seed = get_seed();
@@ -316,10 +315,13 @@ pub fn get_transaction_unlock_blocks(
     hasher.finalize_variable(|res| {
         hashed_essence[..32].clone_from_slice(&res[..32]);
     });
-    get_transaction_unlock_blocks_essence_hash(chain, account, hashed_essence, address_index_recorders)
+    get_transaction_unlock_blocks_essence_hash(
+        chain,
+        account,
+        hashed_essence,
+        address_index_recorders,
+    )
 }
-
-
 
 pub fn test_blindsigning(
     hrp: &str,
@@ -333,11 +335,7 @@ pub fn test_blindsigning(
     // build random config
     let num_inputs = rnd.next_u32() as u16 % 10 /*MAX_INPUTS*/ + 1;
 
-
-    let config = format!(
-        "{}",
-        num_inputs,
-    );
+    let config = format!("{}", num_inputs,);
 
     let mut hm = HASHMAP.lock().unwrap();
 
@@ -365,8 +363,6 @@ pub fn test_blindsigning(
 
     let mut address_index_recorders: Vec<InputIndexRecorder> = Vec::new();
 
-
-
     let mut key_indices: Vec<LedgerBIP32Index> = Vec::new();
     let mut key_strings: Vec<String> = Vec::new();
 
@@ -376,7 +372,7 @@ pub fn test_blindsigning(
 
         let input = Input::Utxo(
             UtxoInput::new(TransactionId::from(txid), rnd.next_u32() as u16 % 127).unwrap(),
-        );        
+        );
 
         let is_change = rnd.next_u32() & 0x1 == 0x1;
         let input_bip32_index = LedgerBIP32Index {
@@ -403,23 +399,24 @@ pub fn test_blindsigning(
             bip32_index: input_bip32_index,
             input,
             bech32: b32.clone(),
-        });        
+        });
     }
 
     // Gets the unlock blocks for a transaction.
-    let ref_blocks =
-    get_transaction_unlock_blocks_blindsigning_essence_hash(chain, account, essence_hash, &key_indices).unwrap();
+    let ref_blocks = get_transaction_unlock_blocks_blindsigning_essence_hash(
+        chain,
+        account,
+        essence_hash,
+        &key_indices,
+    )
+    .unwrap();
     println!("essence_hash: {}", hex(&essence_hash));
 
     println!("new configuration: {}", config);
 
-
     // prepare signing in signgle-signing mode (ssm will be the default when finished)
     ledger
-        .prepare_blindsigning(
-            key_indices,
-            essence_hash.to_vec(),
-        )
+        .prepare_blindsigning(key_indices, essence_hash.to_vec())
         .expect("error prepare blindsigning");
 
     // show essence to user
@@ -433,7 +430,6 @@ pub fn test_blindsigning(
     let signature_bytes = ledger.sign(num_inputs).expect("error signing");
     println!("signature: {}", hex(&signature_bytes));
     println!();
-   
 
     // unpack all signatures to vector
     let mut readable = &mut &*signature_bytes;
@@ -441,7 +437,7 @@ pub fn test_blindsigning(
         let signature = UnlockBlock::unpack(&mut readable).expect("error unpacking signature");
 
         let signature2 = ref_blocks.get(t as usize).unwrap();
- 
+
         assert_eq!(&signature, signature2);
 
         match signature {
@@ -462,8 +458,7 @@ pub fn test_blindsigning(
 
                         assert_eq!(b32, *key_strings.get(t as usize).unwrap());
 
-                        let pub_key =
-                            ed25519::PublicKey::try_from_bytes(*pub_key_bytes).unwrap();
+                        let pub_key = ed25519::PublicKey::try_from_bytes(*pub_key_bytes).unwrap();
 
                         if !pub_key.verify(&sig, &essence_hash) {
                             panic!("error verifying signature");
@@ -482,7 +477,6 @@ pub fn test_blindsigning(
 
     Ok(true)
 }
-
 
 pub fn random_essence(
     hrp: &str,
@@ -770,7 +764,8 @@ pub fn random_essence(
 
     // Gets the unlock blocks for a transaction.
     let ref_blocks =
-        get_transaction_unlock_blocks(chain, account, &essence, &mut address_index_recorders).unwrap();
+        get_transaction_unlock_blocks(chain, account, &essence, &mut address_index_recorders)
+            .unwrap();
 
     let mut key_indices: Vec<LedgerBIP32Index> = Vec::new();
     let mut key_strings_new: Vec<String> = Vec::new();
@@ -870,8 +865,7 @@ pub fn random_essence(
 
                         assert_eq!(b32, *key_strings.get(t as usize).unwrap());
 
-                        let pub_key =
-                            ed25519::PublicKey::try_from_bytes(*pub_key_bytes).unwrap();
+                        let pub_key = ed25519::PublicKey::try_from_bytes(*pub_key_bytes).unwrap();
 
                         if !pub_key.verify(&sig, &hashed_essence) {
                             panic!("error verifying signature");
@@ -964,7 +958,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                 .value_name("blindsigning")
                 .help("use blindsigning")
                 .takes_value(false),
-        )        
+        )
         .arg(
             Arg::with_name("non-interactive")
                 .short("n")
@@ -1007,7 +1001,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                 .long("coin-type")
                 .help("select coin type (iota, smr)")
                 .takes_value(true),
-        )          
+        )
         .get_matches();
 
     let is_simulator = matches.is_present("is-simulator");
@@ -1052,7 +1046,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     }
 
     let blindsigning = matches.is_present("blindsigning");
-    
+
     println!("{} {}", is_simulator, non_interactive);
 
     let mut rnd = SmallRng::from_seed(PRNG_SEED);
@@ -1073,8 +1067,16 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         None => ("iota", "atoi", 0x107a),
     };
 
-    let mut ledger =
-        iota_ledger::get_ledger_by_type(chain, 0x80000000, &transport_type, if matches.is_present("recorder") { Some(watcher_cb) } else { None })?;
+    let mut ledger = iota_ledger::get_ledger_by_type(
+        chain,
+        0x80000000,
+        &transport_type,
+        if matches.is_present("recorder") {
+            Some(watcher_cb)
+        } else {
+            None
+        },
+    )?;
 
     let is_debug_app = ledger.is_debug_app();
     DEBUG_APP.store(is_debug_app, Ordering::Release);
@@ -1098,10 +1100,25 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
     let mut run: u32 = 0;
     for _ in 0..10000 {
-
         let was_new = match blindsigning {
-            false => random_essence(hrp, chain, &mut ledger, &seed, &mut rnd, non_interactive, blindsigning)?,
-            true => test_blindsigning(hrp, chain, &mut ledger, &seed, &mut rnd, non_interactive, blindsigning)?,
+            false => random_essence(
+                hrp,
+                chain,
+                &mut ledger,
+                &seed,
+                &mut rnd,
+                non_interactive,
+                blindsigning,
+            )?,
+            true => test_blindsigning(
+                hrp,
+                chain,
+                &mut ledger,
+                &seed,
+                &mut rnd,
+                non_interactive,
+                blindsigning,
+            )?,
         };
         if was_new {
             run += 1;
