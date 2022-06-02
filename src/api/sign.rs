@@ -37,14 +37,13 @@ impl Packable for ResponseVec {
         let mut expected_length = match signature_type {
             0 => SIGNATURE_UNLOCK_BLOCK_LENGTH,
             1 => REFERENCE_UNLOCK_BLOCK_LENGTH,
-            0x80 => SIGNATURE_UNLOCK_BLOCK_LENGTH, // blindsigning & signature unlock block
             _ => {
                 return Err(PackableError::InvalidVariant);
             }
         };
 
         expected_length -= 1;
-        data.push(signature_type & !0x80);
+        data.push(signature_type);
 
         let mut bytes_read = 0;
         loop {

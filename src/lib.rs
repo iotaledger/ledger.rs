@@ -14,9 +14,10 @@ use crate::api::errors::APIError;
 pub use crate::transport::transport_tcp::Callback;
 pub use crate::transport::{Transport, TransportTypes};
 
-use crate::api::packable::{Error as PackableError, Packable, Read, Write};
+use crate::api::packable::Packable;
 
 pub mod api;
+pub(crate) mod structs;
 pub mod transport;
 
 const MINIMUM_APP_VERSION: u32 = 6002;
@@ -27,26 +28,9 @@ pub struct LedgerBIP32Index {
     pub bip32_change: u32,
 }
 
-impl Packable for LedgerBIP32Index {
-    fn packed_len(&self) -> usize {
-        0u32.packed_len() + 0u32.packed_len()
-    }
-
-    fn pack<W: Write>(&self, buf: &mut W) -> Result<(), PackableError> {
-        self.bip32_index.pack(buf)?;
-        self.bip32_change.pack(buf)?;
-        Ok(())
-    }
-
-    fn unpack<R: Read>(buf: &mut R) -> Result<Self, PackableError>
-    where
-        Self: Sized,
-    {
-        Ok(Self {
-            bip32_index: u32::unpack(buf)?,
-            bip32_change: u32::unpack(buf)?,
-        })
-    }
+pub(crate) struct LedgerBIP32IndexShort {
+    pub bip32_index: u32,
+    pub bip32_change: u8,
 }
 
 pub enum LedgerDeviceTypes {
@@ -294,7 +278,9 @@ impl LedgerHardwareWallet {
     ///
     /// The MSB (=hardened) always must be set.
     pub fn set_account(&self, coin_type: u32, bip32_account: u32) -> Result<(), APIError> {
-        api::set_account::exec(coin_type, self.transport(), bip32_account)?;
+        let app_config = crate::api::get_app_config::exec(self.transport())?;
+
+        api::set_account::exec(coin_type, app_config, self.transport(), bip32_account)?;
         Ok(())
     }
 
@@ -414,9 +400,9 @@ impl LedgerHardwareWallet {
         Ok(())
     }
 
-    /// Prepare Signing
+    /// Prepare Blind Signing
     ///
-    /// Uploads the essence, parses and validates it.
+    /// Uploads the essence hash and validates it
     pub fn prepare_blindsigning(
         &self,
         key_indices: Vec<LedgerBIP32Index>,
@@ -430,7 +416,12 @@ impl LedgerHardwareWallet {
             .map_err(|_| APIError::Unknown)?;
 
         for key in key_indices.iter() {
-            key.pack(&mut buffer).map_err(|_| APIError::Unknown)?;
+            // convert long bip32 to short bip32
+            // this shrinks the change bip32 to a u8;
+            // unshrinked in the app with set HARDENED flag
+            let short = LedgerBIP32IndexShort::from(key);
+            // and store it in the buffer
+            short.pack(&mut buffer).map_err(|_| APIError::Unknown)?;
         }
         let buffer_len = buffer.len();
 
