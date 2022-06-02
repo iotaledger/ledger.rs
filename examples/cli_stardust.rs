@@ -100,7 +100,8 @@ const DEFAULT_SEED: [u8; 64] = [
 ];
 const DEFAULT_KEY_DEBUG: &str = "171167b16cb8dcfa0b4f46e9bbb196cfbb2ee9b5ba7d9f19786ac6974ece46d1";
 
-const DEFAULT_KEY: &str = "388d5c8d2092737ced931879db1a79248444084afdf968331f4e7ae290946a4a";
+const DEFAULT_KEY_SMR: &str = "388d5c8d2092737ced931879db1a79248444084afdf968331f4e7ae290946a4a";
+const DEFAULT_KEY_IOTA: &str = "f14f5bc7f78179df26fed411de31e6e1344f272597972bc975cedff700819d95";
 
 // output-range to test address pooling
 const MAX_INPUT_RANGE: u32 = 10; //100;
@@ -1100,10 +1101,11 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     let bip32_path = slip10::path::BIP32Path::from_str(&path).unwrap();
     let key = slip10::derive_key_from_path(&seed[..], slip10::Curve::Ed25519, &bip32_path).unwrap();
 
-    if chain == 0x1 {
-        assert_eq!(DEFAULT_KEY_DEBUG, hex(&key.key));
-    } else {
-        assert_eq!(DEFAULT_KEY, hex(&key.key));
+    match chain {
+        0x1 => assert_eq!(DEFAULT_KEY_DEBUG, hex(&key.key)),
+        0x107a => assert_eq!(DEFAULT_KEY_IOTA, hex(&key.key)),
+        0x107b => assert_eq!(DEFAULT_KEY_SMR, hex(&key.key)),
+        _ => unreachable!()
     }
 
     let mut run: u32 = 0;
