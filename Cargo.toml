@@ -18,6 +18,11 @@ bech32 = "0.7.2"
 trait-async = "0.1.24"
 lazy_static = "1.4.0"
 
+[features]
+default = [ ]
+ledger_nano = [ ]
+
+
 [dev-dependencies]
 # tests
 serial_test = "0.5.1"
@@ -25,6 +30,10 @@ bee-common = { git = "https://github.com/iotaledger/bee.git", branch = "dev" }
 bee-message = { git = "https://github.com/iotaledger/bee.git", branch = "dev" }
 #iota-core = { git = "https://github.com/iotaledger/iota.rs", branch = "dev" }
 iota-crypto = { git = "https://github.com/iotaledger/crypto.rs",  branch="dev", features=["ed25519"] }
+bee-block = { git = "https://github.com/iotaledger/bee", rev = "146ce1011fd76f3d9f07390b002b29dd6762daf3", default-features = false, features = [ "serde", "dto" ] }
+bee-rest-api = { git = "https://github.com/iotaledger/bee", rev = "146ce1011fd76f3d9f07390b002b29dd6762daf3", default-features = false }
+bee-pow = { git = "https://github.com/iotaledger/bee", rev = "146ce1011fd76f3d9f07390b002b29dd6762daf3", default-features = false }
+packable = { version = "0.3.2", default-features = false, features = [ "serde", "primitive-types" ] }
 
 # CLI example
 log = "0.4.11"

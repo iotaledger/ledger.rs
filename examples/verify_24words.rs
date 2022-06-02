@@ -66,7 +66,7 @@ pub fn get_addr(
     account: u32,
     index: LedgerBIP32Index,
 ) -> Result<[u8; 32], slip10::Error> {
-    let key = get_key(&seed, chain, account, index)?;
+    let key = get_key(seed, chain, account, index)?;
     let pubkey = key.public_key();
     let mut truncated = [0u8; 32];
     truncated.clone_from_slice(&pubkey[1..33]);

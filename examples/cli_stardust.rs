@@ -5,7 +5,6 @@ use rand::{RngCore, SeedableRng};
 use std::io::prelude::*;
 use std::sync::Mutex;
 
-use std::convert::TryInto;
 use std::str::FromStr;
 
 use bip39::Mnemonic;
@@ -18,18 +17,29 @@ use blake2::VarBlake2b;
 use iota_ledger::LedgerBIP32Index;
 
 use ledger_transport::{APDUAnswer, APDUCommand};
+use packable::Packable;
+/*
+use bee_block::address::{Address, Ed25519Address};
+*/
+use bee_block::address::Address;
+use bee_block::address::Ed25519Address;
+use bee_block::input::{Input, UtxoInput};
+use bee_block::output::{BasicOutput, BasicOutputBuilder, InputsCommitment, Output};
+use bee_block::signature::Signature::Ed25519;
+use bee_block::signature::{Ed25519Signature, Signature};
+use bee_block::unlock::SignatureUnlock;
 
-use bee_message::address::{Address, Ed25519Address};
-use bee_message::input::{Input, UtxoInput};
-use bee_message::output::{Output, SignatureLockedSingleOutput};
-use bee_message::signature::{Ed25519Signature, SignatureUnlock};
-use bee_message::unlock::{ReferenceUnlock, UnlockBlock};
+use bee_block::payload::transaction::TransactionEssence;
+use packable::PackableExt;
 
-use bee_message::payload::transaction::{
-    Essence, RegularEssence, RegularEssenceBuilder, TransactionId,
+use bee_block::output::unlock_condition::{AddressUnlockCondition, UnlockCondition};
+
+use bee_block::unlock::{ReferenceUnlock, Unlock};
+
+use bee_block::payload::transaction::{
+    RegularTransactionEssence, RegularTransactionEssenceBuilder, TransactionId,
 };
 
-use bee_common::packable::Packable;
 
 use crypto::signatures::ed25519;
 
@@ -90,7 +100,7 @@ const DEFAULT_SEED: [u8; 64] = [
 ];
 const DEFAULT_KEY_DEBUG: &str = "171167b16cb8dcfa0b4f46e9bbb196cfbb2ee9b5ba7d9f19786ac6974ece46d1";
 
-const DEFAULT_KEY: &str = "f14f5bc7f78179df26fed411de31e6e1344f272597972bc975cedff700819d95";
+const DEFAULT_KEY: &str = "388d5c8d2092737ced931879db1a79248444084afdf968331f4e7ae290946a4a";
 
 // output-range to test address pooling
 const MAX_INPUT_RANGE: u32 = 10; //100;
@@ -200,16 +210,50 @@ pub struct OutputIndexRecorder {
     pub is_remainder: bool,
 }
 
+pub fn get_transaction_unlock_blocks_blindsigning_essence_hash(
+    chain: u32,
+    account: u32,
+    essence_hash: [u8; 32],
+    address_indices: &[LedgerBIP32Index],
+) -> Result<Vec<Unlock>> {
+    let seed = get_seed();
+    let mut unlock_blocks = vec![];
+    for (_, bip32_index) in address_indices.iter().enumerate() {
+        // If not, we should create a signature unlock block
+        let private_key = get_key(chain, &seed, account, *bip32_index).unwrap();
+
+        let iota_priv_key = ed25519::SecretKey::from_bytes(private_key.key);
+
+        let public_key = private_key.public_key();
+        let mut public_key_trunc = [0u8; 32];
+
+        public_key_trunc.clone_from_slice(&public_key[1..33]);
+
+        // The block should sign the entire transaction essence part of the transaction payload
+        let signature = Box::new(iota_priv_key.sign(&essence_hash).to_bytes());
+        unlock_blocks.push(Unlock::Signature(SignatureUnlock::new(Signature::Ed25519(
+            Ed25519Signature::new(public_key_trunc, *signature),
+        ))));
+        log::info!(
+            "put {:08x}:{:08x} into signatures_indexes",
+            bip32_index.bip32_change,
+            bip32_index.bip32_index,
+        );
+        // Update current block index
+    }
+    Ok(unlock_blocks)
+}
+
 pub fn get_transaction_unlock_blocks_essence_hash(
     chain: u32,
     account: u32,
     essence_hash: [u8; 32],
     address_index_recorders: &mut [InputIndexRecorder],
-) -> Result<Vec<UnlockBlock>> {
+) -> Result<Vec<Unlock>> {
     let seed = get_seed();
     let mut unlock_blocks = vec![];
     let mut signature_indexes = HashMap::<LedgerBIP32Index, usize>::new();
-    address_index_recorders.sort_by(|a, b| a.input.cmp(&b.input));
+    //address_index_recorders.sort_by(|a, b| a.input.cmp(&b.input)); XXX
     for (current_block_index, recorder) in address_index_recorders.iter().enumerate() {
         // Check if current path is same as previous path
         // If so, add a reference unlock block
@@ -228,10 +272,10 @@ pub fn get_transaction_unlock_blocks_essence_hash(
                 current_block_index,
                 *v
             );
-            unlock_blocks.push(UnlockBlock::Reference(
-                ReferenceUnlock::new(*v as u16)
-                    .map_err(|_| anyhow::anyhow!("failed to create reference unlock block"))?,
-            ));
+            unlock_blocks
+                .push(Unlock::Reference(ReferenceUnlock::new(*v as u16).map_err(
+                    |_| anyhow::anyhow!("failed to create reference unlock block"),
+                )?));
         } else {
             // If not, we should create a signature unlock block
             let private_key = get_key(chain, &seed, account, recorder.bip32_index).unwrap();
@@ -245,9 +289,9 @@ pub fn get_transaction_unlock_blocks_essence_hash(
 
             // The block should sign the entire transaction essence part of the transaction payload
             let signature = Box::new(iota_priv_key.sign(&essence_hash).to_bytes());
-            unlock_blocks.push(UnlockBlock::Signature(SignatureUnlock::Ed25519(
+            unlock_blocks.push(Unlock::Signature(SignatureUnlock::new(Signature::Ed25519(
                 Ed25519Signature::new(public_key_trunc, *signature),
-            )));
+            ))));
             signature_indexes.insert(recorder.bip32_index, current_block_index);
             log::info!(
                 "put {:08x}:{:08x} {} into signatures_indexes",
@@ -265,13 +309,10 @@ pub fn get_transaction_unlock_blocks_essence_hash(
 pub fn get_transaction_unlock_blocks(
     chain: u32,
     account: u32,
-    essence: &RegularEssence,
+    essence: &RegularTransactionEssence,
     address_index_recorders: &mut [InputIndexRecorder],
-) -> Result<Vec<UnlockBlock>> {
-    let mut serialized_essence = Vec::new();
-    Essence::from(essence.clone())
-        .pack(&mut serialized_essence)
-        .map_err(|_| anyhow::anyhow!("invalid parameter: inputs"))?;
+) -> Result<Vec<Unlock>> {
+    let serialized_essence: Vec<u8> = TransactionEssence::from(essence.clone()).pack_to_vec();
 
     let mut hasher = VarBlake2b::new(32).unwrap();
     hasher.update(serialized_essence);
@@ -285,6 +326,161 @@ pub fn get_transaction_unlock_blocks(
         hashed_essence,
         address_index_recorders,
     )
+}
+
+pub fn test_blindsigning(
+    hrp: &str,
+    chain: u32,
+    ledger: &mut iota_ledger::LedgerHardwareWallet,
+    rnd: &mut SmallRng,
+    non_interactive: bool,
+) -> Result<bool, Box<dyn Error>> {
+    // build random config
+    let num_inputs = rnd.next_u32() as u16 % 10 /*MAX_INPUTS*/ + 1;
+
+    let config = format!("{}", num_inputs,);
+
+    let mut hm = HASHMAP.lock().unwrap();
+
+    let is_new = match hm.get(&config) {
+        Some(_) => false,
+        None => {
+            hm.insert(config.clone(), true);
+            true
+        }
+    };
+    drop(hm);
+    if !is_new {
+        return Ok(false);
+    }
+
+    let mut essence_hash = [0u8; 32];
+    rnd.fill_bytes(&mut essence_hash);
+
+    #[allow(clippy::modulo_one)]
+    let account = (rnd.next_u32() % MAX_ACCOUNT_RANGE) | HARDENED;
+    println!("account: 0x{:08x}", account & !0x80000000);
+
+    // get new ledger object (for testing)
+    ledger.set_account(chain, account)?;
+
+    let mut address_index_recorders: Vec<InputIndexRecorder> = Vec::new();
+
+    let mut key_indices: Vec<LedgerBIP32Index> = Vec::new();
+    let mut key_strings: Vec<String> = Vec::new();
+
+    for i in 0..num_inputs {
+        let mut txid = [0u8; 32];
+        rnd.fill_bytes(&mut txid);
+
+        let input = Input::Utxo(
+            UtxoInput::new(TransactionId::from(txid), rnd.next_u32() as u16 % 127).unwrap(),
+        );
+
+        let is_change = rnd.next_u32() & 0x1 == 0x1;
+        let input_bip32_index = LedgerBIP32Index {
+            bip32_index: (rnd.next_u32() % MAX_INPUT_RANGE) | HARDENED,
+            bip32_change: if is_change { 1 } else { 0 } | HARDENED,
+        };
+
+        let input_addr_bytes: [u8; 32] = *ledger
+            .get_addresses(false, input_bip32_index, 1)
+            .expect("error get new address")
+            .first()
+            .unwrap();
+
+        let mut addr_bytes_with_type = [0u8; 33];
+        addr_bytes_with_type[0] = 0; // ed25519
+        addr_bytes_with_type[1..33].clone_from_slice(&input_addr_bytes[..]);
+        let b32 = bech32::encode(hrp, addr_bytes_with_type.to_base32()).unwrap();
+
+        key_indices.push(input_bip32_index);
+        key_strings.push(b32.clone());
+
+        address_index_recorders.push(InputIndexRecorder {
+            address_index: i as usize,
+            bip32_index: input_bip32_index,
+            input,
+            bech32: b32.clone(),
+        });
+    }
+
+    // Gets the unlock blocks for a transaction.
+    let ref_blocks = get_transaction_unlock_blocks_blindsigning_essence_hash(
+        chain,
+        account,
+        essence_hash,
+        &key_indices,
+    )
+    .unwrap();
+    println!("essence_hash: {}", hex(&essence_hash));
+
+    println!("new configuration: {}", config);
+
+    // prepare signing in signgle-signing mode (ssm will be the default when finished)
+    ledger
+        .prepare_blindsigning(key_indices, essence_hash.to_vec())
+        .expect("error prepare blindsigning");
+
+    // show essence to user
+    if ledger.is_debug_app() {
+        ledger.set_non_interactive_mode(non_interactive)?;
+    }
+    ledger.user_confirm().expect("error user confirm");
+
+    println!();
+    // sign
+    let signature_bytes = ledger.sign(num_inputs).expect("error signing");
+    println!("signature: {}", hex(&signature_bytes));
+    println!();
+
+    let mut readable = &mut &*signature_bytes;
+
+    for t in 0..num_inputs {
+        let signature =
+            Unlock::unpack::<&mut &[u8], true>(&mut readable).expect("error unpacking signature");
+
+        let signature2 = ref_blocks.get(t as usize).unwrap();
+
+        assert_eq!(&signature, signature2);
+        match signature {
+            Unlock::Signature(s) => {
+                let sig = s.signature();
+                match sig {
+                    Ed25519(s) => {
+                        let sig: [u8; 64] = *s.signature();
+                        let sig = ed25519::Signature::from_bytes(sig);
+
+                        let pub_key_bytes = s.public_key();
+
+                        let addr_bytes = get_addr_from_pubkey(*pub_key_bytes);
+                        let mut addr_bytes_with_type = [0u8; 33];
+                        addr_bytes_with_type[0] = 0; // ed25519
+                        addr_bytes_with_type[1..33].clone_from_slice(&addr_bytes[..]);
+                        let b32 = bech32::encode(hrp, addr_bytes_with_type.to_base32()).unwrap();
+                        //                        println!("{} vs {}", b32, key_strings.get(t as usize).unwrap());
+
+                        assert_eq!(b32, *key_strings.get(t as usize).unwrap());
+
+                        let pub_key = ed25519::PublicKey::try_from_bytes(*pub_key_bytes).unwrap();
+
+                        if !pub_key.verify(&sig, &essence_hash) {
+                            panic!("error verifying signature");
+                        }
+
+                        println!("found valid signature");
+                    }
+                }
+            }
+            Unlock::Reference(_) => {
+                // NOP
+                println!("found reference");
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    Ok(true)
 }
 
 pub fn random_essence(
@@ -330,7 +526,8 @@ pub fn random_essence(
 
     // add to essence
     // build essence and add input and output
-    let mut essence_builder = RegularEssenceBuilder::new();
+    let mut essence_builder =
+        RegularTransactionEssenceBuilder::new(0u64, InputsCommitment::from([0u8; 32]));
 
     #[allow(clippy::modulo_one)]
     let account = (rnd.next_u32() % MAX_ACCOUNT_RANGE) | HARDENED;
@@ -408,10 +605,13 @@ pub fn random_essence(
             .first()
             .unwrap();
         let value_out = rnd.next_u32() as u64 + 1u64;
-        let output = Output::SignatureLockedSingle(SignatureLockedSingleOutput::new(
-            Address::Ed25519(Ed25519Address::new(output_addr_bytes)),
-            value_out,
-        )?);
+
+        let output = BasicOutputBuilder::new_with_amount(value_out)?.add_unlock_condition(
+            UnlockCondition::Address(AddressUnlockCondition::new(Address::Ed25519(
+                Ed25519Address::new(output_addr_bytes),
+            ))),
+        );
+        let output: BasicOutput = output.finish()?;
 
         //essence_builder = essence_builder.add_output(output.clone());
 
@@ -425,7 +625,7 @@ pub fn random_essence(
         let cmp_b32 = bech32::encode(hrp, addr_bytes_with_type.to_base32()).unwrap();
 
         output_recorder.push(OutputIndexRecorder {
-            output: output.clone(),
+            output: Output::Basic(output.clone()),
             bech32: b32.clone(),
             bip32_index: output_bip32_index,
             value: value_out,
@@ -469,10 +669,13 @@ pub fn random_essence(
         let value_remainder = rnd.next_u32() as u64;
 
         // create output with remainder address
-        let remainder = Output::SignatureLockedSingle(SignatureLockedSingleOutput::new(
-            Address::Ed25519(Ed25519Address::new(remainder_addr_bytes)),
-            value_remainder,
-        )?);
+        let remainder = BasicOutputBuilder::new_with_amount(value_remainder)?.add_unlock_condition(
+            UnlockCondition::Address(AddressUnlockCondition::new(Address::Ed25519(
+                Ed25519Address::new(remainder_addr_bytes),
+            ))),
+        );
+        let remainder: BasicOutput = remainder.finish()?;
+
         //essence_builder = essence_builder.add_output(remainder.clone());
 
         let mut addr_bytes_with_type = [0u8; 33];
@@ -482,7 +685,7 @@ pub fn random_essence(
         let b32 = bech32::encode(hrp, addr_bytes_with_type.to_base32()).unwrap();
 
         output_recorder.push(OutputIndexRecorder {
-            output: remainder,
+            output: Output::Basic(remainder),
             bech32: b32.clone(),
             bip32_index: remainder_bip32,
             value: value_remainder,
@@ -506,8 +709,8 @@ pub fn random_essence(
         assert_eq!(b32, cmp_b32);
     }
 
-    output_recorder.sort_by(|a, b| a.output.cmp(&b.output));
-    address_index_recorders.sort_by(|a, b| a.input.cmp(&b.input));
+    //output_recorder.sort_by(|a, b| a.output.cmp(&b.output)); XXX
+    //address_index_recorders.sort_by(|a, b| a.input.cmp(&b.input)); XXX
 
     // sort inputs
     for recorder in address_index_recorders.clone() {
@@ -535,10 +738,7 @@ pub fn random_essence(
     }
 
     // pack the essence to bytes
-    let mut essence_bytes: Vec<u8> = Vec::new();
-    Essence::from(essence.clone())
-        .pack(&mut essence_bytes)
-        .expect("error packing data");
+    let essence_bytes: Vec<u8> = TransactionEssence::from(essence.clone()).pack_to_vec();
 
     println!("essence: {}", hex(&essence_bytes));
 
@@ -547,7 +747,7 @@ pub fn random_essence(
         // because outputs are sorted lexically and index may have changed (probably)
         for output in essence.outputs().iter() {
             match output {
-                Output::SignatureLockedSingle(s) => {
+                Output::Basic(s) => {
                     let remainder_output =
                         Address::Ed25519(Ed25519Address::new(remainder_addr_bytes));
                     if remainder_output == *s.address() {
@@ -648,18 +848,21 @@ pub fn random_essence(
 
     // unpack all signatures to vector
     let mut readable = &mut &*signature_bytes;
+
     for t in 0..num_inputs {
-        let signature = UnlockBlock::unpack(&mut readable).expect("error unpacking signature");
+        let signature =
+            Unlock::unpack::<&mut &[u8], true>(&mut readable).expect("error unpacking signature");
 
         let signature2 = ref_blocks.get(t as usize).unwrap();
 
         assert_eq!(&signature, signature2);
 
         match signature {
-            UnlockBlock::Signature(s) => {
-                match s {
-                    SignatureUnlock::Ed25519(s) => {
-                        let sig: [u8; 64] = s.signature().try_into()?;
+            Unlock::Signature(s) => {
+                let sig = s.signature();
+                match sig {
+                    Ed25519(s) => {
+                        let sig: [u8; 64] = *s.signature();
                         let sig = ed25519::Signature::from_bytes(sig);
 
                         let pub_key_bytes = s.public_key();
@@ -683,10 +886,11 @@ pub fn random_essence(
                     }
                 }
             }
-            UnlockBlock::Reference(_) => {
+            Unlock::Reference(_) => {
                 // NOP
                 println!("found reference");
             }
+            _ => unreachable!(),
         }
     }
 
@@ -757,6 +961,14 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                 .long("simulator")
                 .value_name("is_simulator")
                 .help("select the simulator as transport")
+                .takes_value(false),
+        )
+        .arg(
+            Arg::with_name("blindsigning")
+                .short("b")
+                .long("blindsigning")
+                .value_name("blindsigning")
+                .help("use blindsigning")
                 .takes_value(false),
         )
         .arg(
@@ -845,6 +1057,8 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         drop(writer);
     }
 
+    let blindsigning = matches.is_present("blindsigning");
+
     println!("{} {}", is_simulator, non_interactive);
 
     let mut rnd = SmallRng::from_seed(PRNG_SEED);
@@ -859,9 +1073,8 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     (hrp, chain) = match matches.value_of("coin-type") {
         Some(c) => match c {
             "iota" => ("iota", 0x107a),
-// not supported in Chrysalis
-//            "smr" => ("smr", 0x107b),
-//            "rms" => ("rms", 0x1),
+            "smr" => ("smr", 0x107b),
+            "rms" => ("rms", 0x1),
             "atoi" => ("atoi", 0x1),
             _ => panic!("unknown coin type"),
         },
@@ -895,7 +1108,10 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
     let mut run: u32 = 0;
     for _ in 0..10000 {
-        let was_new = random_essence(hrp, chain, &mut ledger, &seed, &mut rnd, non_interactive)?;
+        let was_new = match blindsigning {
+            false => random_essence(hrp, chain, &mut ledger, &seed, &mut rnd, non_interactive)?,
+            true => test_blindsigning(hrp, chain, &mut ledger, &mut rnd, non_interactive)?,
+        };
         if was_new {
             run += 1;
             println!("\nrun {} successful\n", run);
