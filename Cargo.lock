@@ -725,6 +725,8 @@ name = "iota-crypto"
 version = "0.11.0"
 source = "git+https://github.com/iotaledger/crypto.rs?branch=dev#c61d29253930105d0d589e54829b639427061e81"
 dependencies = [
+ "blake2",
+ "digest",
  "ed25519-zebra",
 ]
 

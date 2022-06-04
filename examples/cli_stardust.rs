@@ -40,7 +40,6 @@ use bee_block::payload::transaction::{
     RegularTransactionEssence, RegularTransactionEssenceBuilder, TransactionId,
 };
 
-
 use crypto::signatures::ed25519;
 
 use std::error::Error;
@@ -105,7 +104,7 @@ const DEFAULT_KEY_IOTA: &str = "f14f5bc7f78179df26fed411de31e6e1344f272597972bc9
 
 // output-range to test address pooling
 const MAX_INPUT_RANGE: u32 = 10; //100;
-const MAX_OUTPUT_RANGE: u32 = 100;
+const MAX_OUTPUT_RANGE: u32 = 10; //100;
 const MAX_REMAINDER_RANGE: u32 = 100;
 
 const MAX_ACCOUNT_RANGE: u32 = 4;
@@ -134,7 +133,7 @@ const MAX_INPUTS: u16 = 126;
 const MAX_OUTPUTS: u16 = 126;
 
 // nano s
-const MAX_SUM_INPUTS_OUTPUTS: u16 = 16;
+const MAX_SUM_INPUTS_OUTPUTS: u16 = 15;
 
 use anyhow::Result;
 
@@ -495,12 +494,14 @@ pub fn random_essence(
     // build random config
     let num_inputs = rnd.next_u32() as u16 % MAX_INPUTS + 1;
     let num_outputs = rnd.next_u32() as u16 % MAX_OUTPUTS + 1;
+    let num_remainder: u16 = rnd.next_u32() as u16 % 1;
 
-    if num_inputs + num_outputs > MAX_SUM_INPUTS_OUTPUTS {
+    if num_inputs + num_outputs + num_remainder > MAX_SUM_INPUTS_OUTPUTS {
         return Ok(false);
     }
 
-    let has_remainder = rnd.next_u32() & 0x1 != 0;
+    let has_remainder = num_remainder > 0; 
+    
     let mut remainder_index: u16 = 0;
 
     let config = format!(
@@ -584,21 +585,8 @@ pub fn random_essence(
 
     let mut output_recorder: Vec<OutputIndexRecorder> = Vec::new();
     for _ in 0..num_outputs {
-        let mut output_bip32_index = None;
-        loop {
-            if output_bip32_index.is_some()
-                && !output_recorder
-                    .clone()
-                    .into_iter()
-                    .any(|a| a.bip32_index == output_bip32_index.unwrap())
-            {
-                break;
-            }
-            output_bip32_index = Some(
-                LedgerBIP32Index{bip32_index: (rnd.next_u32() % MAX_OUTPUT_RANGE) | HARDENED, bip32_change: /* 0 | */ HARDENED},
-            );
-        }
-        let output_bip32_index = output_bip32_index.unwrap();
+        // duplicate outputs are allowed in stardust
+        let output_bip32_index = LedgerBIP32Index{bip32_index: (rnd.next_u32() % MAX_OUTPUT_RANGE) | HARDENED, bip32_change: /* 0 | */ HARDENED};
 
         let output_addr_bytes: [u8; 32] = *ledger
             .get_addresses(false, output_bip32_index, 1)
@@ -638,29 +626,20 @@ pub fn random_essence(
         assert_eq!(b32, cmp_b32);
     }
 
-    let mut remainder_bip32 = LedgerBIP32Index::default();
     let mut remainder_addr_bytes = [0u8; 32];
+    let mut remainder_bip32 = LedgerBIP32Index::default();
+
     //    let mut remainder_recorer : Vec<OutputIndexRecorder> = Vec::new();
     if has_remainder {
         if ledger.is_debug_app() {
             ledger.set_non_interactive_mode(non_interactive)?;
         }
-        let mut bip32 = None;
-        loop {
-            if bip32.is_some()
-                && !output_recorder
-                    .clone()
-                    .into_iter()
-                    .any(|a| a.bip32_index == bip32.unwrap())
-            {
-                break;
-            }
-            bip32 = Some(LedgerBIP32Index {
-                bip32_index: (rnd.next_u32() % MAX_REMAINDER_RANGE) | HARDENED,
-                bip32_change: 1 | HARDENED,
-            });
-        }
-        remainder_bip32 = bip32.unwrap();
+
+        // duplicat outputs are allowed in stardust
+        remainder_bip32 = LedgerBIP32Index {
+            bip32_index: (rnd.next_u32() % MAX_REMAINDER_RANGE) | HARDENED,
+            bip32_change: 1 | HARDENED,
+        };
 
         remainder_addr_bytes = *ledger
             .get_addresses(true, remainder_bip32, 1)
@@ -710,6 +689,7 @@ pub fn random_essence(
         assert_eq!(b32, cmp_b32);
     }
 
+    // sorting not needed in stardust
     //output_recorder.sort_by(|a, b| a.output.cmp(&b.output)); XXX
     //address_index_recorders.sort_by(|a, b| a.input.cmp(&b.input)); XXX
 
@@ -798,8 +778,16 @@ pub fn random_essence(
     let key_strings = key_strings_new;
     println!();
     for m in output_recorder {
+        let path = format!(
+            "2c'/{:x}'/{:x}'/{:x}'/{:x}'",
+            chain,
+            account & !0x80000000,
+            m.bip32_index.bip32_change & !0x80000000,
+            m.bip32_index.bip32_index & !0x80000000
+        );
+
         if !m.is_remainder {
-            println!("output: {} {}", m.bech32, m.value);
+            println!("output: {} {} {}", m.bech32, m.value, path);
         } else {
             let path = format!(
                 "2c'/{:x}'/{:x}'/{:x}'/{:x}'",
@@ -809,7 +797,7 @@ pub fn random_essence(
                 m.bip32_index.bip32_index & !0x80000000
             );
             println!();
-            println!("remainder: {} {} {}", m.bech32, path, m.value);
+            println!("remainder: {} {} {} {}", m.bech32, path, m.value, path);
         }
     }
 
@@ -1105,7 +1093,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         0x1 => assert_eq!(DEFAULT_KEY_DEBUG, hex(&key.key)),
         0x107a => assert_eq!(DEFAULT_KEY_IOTA, hex(&key.key)),
         0x107b => assert_eq!(DEFAULT_KEY_SMR, hex(&key.key)),
-        _ => unreachable!()
+        _ => unreachable!(),
     }
 
     let mut run: u32 = 0;
