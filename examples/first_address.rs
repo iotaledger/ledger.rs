@@ -41,25 +41,23 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     } else {
         iota_ledger::TransportTypes::NativeHID
     };
-    let mut hrp;
-    let prh;
-    let mut chain;
-    (hrp, prh, chain) = match matches.value_of("coin-type") {
+    let hrp;
+    let chain;
+
+    (hrp, chain) = match matches.value_of("coin-type") {
         Some(c) => match c {
-            "iota" => ("iota", "atoi", 0x107a),
-            "smr" => ("smr", "rms", 0x107b),
+            "iota" => ("iota", 0x107a),
+            "smr" => ("smr", 0x107b),
+            "rms" => ("rms", 0x1),
+            "atoi" => ("atoi", 0x1),
             _ => panic!("unknown coin type"),
         },
-        None => ("iota", "atoi", 0x107a),
+        None => ("iota", 0x107a),
     };
 
     let ledger = iota_ledger::get_ledger_by_type(chain, BIP32_ACCOUNT, &transport_type, None)?;
 
-    (hrp, chain) = match ledger.is_debug_app() {
-        true => (prh, 0x1),
-        false => (hrp, chain),
-    };
-
+ 
     let bip32_indices = LedgerBIP32Index {
         bip32_change: BIP32_CHANGE,
         bip32_index: BIP32_INDEX,
