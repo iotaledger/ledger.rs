@@ -500,8 +500,8 @@ pub fn random_essence(
         return Ok(false);
     }
 
-    let has_remainder = num_remainder > 0; 
-    
+    let has_remainder = num_remainder > 0;
+
     let mut remainder_index: u16 = 0;
 
     let config = format!(

@@ -14,10 +14,9 @@ use crate::api::errors::APIError;
 pub use crate::transport::transport_tcp::Callback;
 pub use crate::transport::{Transport, TransportTypes};
 
-use crate::api::packable::Packable;
+pub use crate::api::packable::{Error as PackableError, Packable, Read, Write};
 
 pub mod api;
-pub(crate) mod structs;
 pub mod transport;
 
 const MINIMUM_APP_VERSION: u32 = 6002;
@@ -28,9 +27,26 @@ pub struct LedgerBIP32Index {
     pub bip32_change: u32,
 }
 
-pub(crate) struct LedgerBIP32IndexShort {
-    pub bip32_index: u32,
-    pub bip32_change: u8,
+impl Packable for LedgerBIP32Index {
+    fn packed_len(&self) -> usize {
+        0u32.packed_len() + 0u32.packed_len()
+    }
+
+    fn pack<W: Write>(&self, buf: &mut W) -> Result<(), PackableError> {
+        self.bip32_index.pack(buf)?;
+        self.bip32_change.pack(buf)?;
+        Ok(())
+    }
+
+    fn unpack<R: Read>(buf: &mut R) -> Result<Self, PackableError>
+    where
+        Self: Sized,
+    {
+        Ok(Self {
+            bip32_index: u32::unpack(buf)?,
+            bip32_change: u32::unpack(buf)?,
+        })
+    }
 }
 
 pub enum LedgerDeviceTypes {
@@ -174,6 +190,10 @@ impl LedgerHardwareWallet {
 
     pub fn device_type(&self) -> &LedgerDeviceTypes {
         &self.device_type
+    }
+
+    pub fn get_buffer_size(&self) -> usize {
+        self.data_buffer_size
     }
 
     // uses the get_data_buffer_state-Api call to figure out if the ledger is locked
@@ -416,12 +436,7 @@ impl LedgerHardwareWallet {
             .map_err(|_| APIError::Unknown)?;
 
         for key in key_indices.iter() {
-            // convert long bip32 to short bip32
-            // this shrinks the change bip32 to a u8;
-            // unshrinked in the app with set HARDENED flag
-            let short = LedgerBIP32IndexShort::from(key);
-            // and store it in the buffer
-            short.pack(&mut buffer).map_err(|_| APIError::Unknown)?;
+            key.pack(&mut buffer).map_err(|_| APIError::Unknown)?;
         }
         let buffer_len = buffer.len();
 

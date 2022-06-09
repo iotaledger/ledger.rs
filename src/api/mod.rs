@@ -7,7 +7,7 @@ pub(crate) mod generate_address;
 pub(crate) mod get_app_config;
 pub(crate) mod get_data_buffer_state;
 pub(crate) mod helpers;
-pub(crate) mod packable;
+pub mod packable;
 pub(crate) mod prepare_blindsigning;
 pub(crate) mod prepare_signing;
 pub(crate) mod read_data_block;

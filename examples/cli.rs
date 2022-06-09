@@ -859,9 +859,9 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     (hrp, chain) = match matches.value_of("coin-type") {
         Some(c) => match c {
             "iota" => ("iota", 0x107a),
-// not supported in Chrysalis
-//            "smr" => ("smr", 0x107b),
-//            "rms" => ("rms", 0x1),
+            // not supported in Chrysalis
+            //            "smr" => ("smr", 0x107b),
+            //            "rms" => ("rms", 0x1),
             "atoi" => ("atoi", 0x1),
             _ => panic!("unknown coin type"),
         },
