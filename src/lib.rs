@@ -97,6 +97,14 @@ pub fn get_app_config(
     Ok(app_config)
 }
 
+pub fn get_buffer_size(transport_type: &TransportTypes) -> Result<usize, APIError> {
+    let transport = crate::transport::create_transport(transport_type, None)?;
+
+    let data_buffer_state = crate::api::get_data_buffer_state::exec(&transport)?;
+
+    Ok(data_buffer_state.data_block_size as usize * data_buffer_state.data_block_count as usize)
+}
+
 /// Open app on the nano s/x
 /// Only works if dashboard is open
 pub fn open_app(transport_type: &TransportTypes, app: String) -> Result<(), APIError> {

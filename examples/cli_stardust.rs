@@ -494,7 +494,7 @@ pub fn random_essence(
     // build random config
     let num_inputs = rnd.next_u32() as u16 % MAX_INPUTS + 1;
     let num_outputs = rnd.next_u32() as u16 % MAX_OUTPUTS + 1;
-    let num_remainder: u16 = rnd.next_u32() as u16 % 1;
+    let num_remainder: u16 = rnd.next_u32() as u16 % 2;
 
     if num_inputs + num_outputs + num_remainder > MAX_SUM_INPUTS_OUTPUTS {
         return Ok(false);
