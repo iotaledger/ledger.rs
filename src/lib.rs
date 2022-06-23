@@ -452,7 +452,7 @@ impl LedgerHardwareWallet {
         self.write_data_buffer(buffer)?;
 
         // now validate essence
-        api::prepare_blindsigning::exec(self.transport())?;
+        api::prepare_blind_signing::exec(self.transport())?;
 
         // get buffer state
         let dbs = api::get_data_buffer_state::exec(self.transport())?;
