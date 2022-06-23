@@ -431,7 +431,7 @@ impl LedgerHardwareWallet {
     /// Prepare Blind Signing
     ///
     /// Uploads the essence hash and validates it
-    pub fn prepare_blindsigning(
+    pub fn prepare_blind_signing(
         &self,
         key_indices: Vec<LedgerBIP32Index>,
         essence_hash: Vec<u8>,
