@@ -9,15 +9,20 @@ futures = "0.3.6"
 log = "0.4.11"
 thiserror = "1.0.20"
 enum-iterator = "0.6.0"
-ledger-apdu = "0.9.0"
-ledger-transport = "0.9.0"
-ledger-transport-hid = "0.9.0"
+#ledger-apdu = "0.9.0"
+#ledger-transport = "0.9.0"
+#ledger-transport-hid = "0.9.0"
 
 hidapi = { version = "1.3.4", features = ["linux-static-hidraw"], default-features = false }
 
 #ledger-apdu = { git = "https://github.com/iotaledger/ledger-rs", rev="e3e519a3562c4917ad311547ea3f4dbdee5d44ae" }
 #ledger-transport-hid = { git = "https://github.com/iotaledger/ledger-rs", rev="e3e519a3562c4917ad311547ea3f4dbdee5d44ae" }
 #ledger-transport = { git = "https://github.com/iotaledger/ledger-rs", rev="e3e519a3562c4917ad311547ea3f4dbdee5d44ae" }
+
+ledger-apdu = { path = "../ledger-rs/ledger-apdu" }
+ledger-transport-hid = { path = "../ledger-rs/ledger-transport-hid" }
+ledger-transport = { path = "../ledger-rs/ledger-transport" }
+
 
 serde = { version = "1.0", features = ["derive"] }
 bech32 = "0.7.2"
