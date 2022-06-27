@@ -6,7 +6,7 @@ use std::net::TcpStream;
 use crate::transport::errors::LedgerTCPError;
 
 pub type Callback =
-    fn(apdu_command: &ledger_transport::APDUCommand, apdu_answer: &ledger_transport::APDUAnswer);
+    fn(apdu_command: &ledger_transport::APDUCommand<Vec<u8>>, apdu_answer: &ledger_transport::APDUAnswer<Vec<u8>>);
 
 pub struct TransportTCP {
     url: String,
@@ -44,7 +44,7 @@ impl TransportTCP {
         Ok(buf)
     }
 
-    pub async fn exchange(&self, command: &APDUCommand) -> Result<APDUAnswer, LedgerTCPError> {
+    pub async fn exchange(&self, command: &APDUCommand<Vec<u8>>) -> Result<APDUAnswer<Vec<u8>>, LedgerTCPError> {
         let raw_command = command.serialize();
 
         let mut stream = TcpStream::connect(&self.url).map_err(|_| LedgerTCPError::ConnectError)?;
@@ -53,7 +53,7 @@ impl TransportTCP {
 
         let raw_answer = TransportTCP::request(&raw_command, &mut stream)
             .map_err(|_| LedgerTCPError::InnerError)?;
-        let answer = APDUAnswer::from_answer(raw_answer);
+        let answer = APDUAnswer::from_answer(raw_answer).map_err(|_| LedgerTCPError::ResponseError)?;
 
         if self.callback.is_some() {
             (self.callback.unwrap())(command, &answer);

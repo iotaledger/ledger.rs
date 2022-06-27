@@ -419,7 +419,7 @@ pub fn test_blindsigning(
 
     // prepare signing in signgle-signing mode (ssm will be the default when finished)
     ledger
-        .prepare_blindsigning(key_indices, essence_hash.to_vec())
+        .prepare_blind_signing(key_indices, essence_hash.to_vec())
         .expect("error prepare blindsigning");
 
     // show essence to user
@@ -886,13 +886,13 @@ pub fn random_essence(
     Ok(true)
 }
 
-fn watcher_cb(apdu_command: &APDUCommand, apdu_answer: &APDUAnswer) {
+fn watcher_cb(apdu_command: &APDUCommand<Vec<u8>>, apdu_answer: &APDUAnswer<Vec<u8>>) {
     let mut writer = WRITER.lock().unwrap();
 
     let raw_command = apdu_command.serialize();
     let mut raw_answer: Vec<u8> = Vec::new();
-    raw_answer.extend(&apdu_answer.data);
-    raw_answer.extend(&apdu_answer.retcode.to_be_bytes());
+    raw_answer.extend(&apdu_answer.data()[..]);
+    raw_answer.extend(&apdu_answer.retcode().to_be_bytes());
 
     match writer.format {
         Some(FormatTypes::Json) => {
@@ -903,7 +903,7 @@ fn watcher_cb(apdu_command: &APDUCommand, apdu_answer: &APDUAnswer) {
                 .collect::<Vec<String>>()
                 .join(", ");
             let answer_data: String = apdu_answer
-                .data
+                .data()
                 .iter()
                 .map(|b| format!("{}", b))
                 .collect::<Vec<String>>()
@@ -914,7 +914,7 @@ fn watcher_cb(apdu_command: &APDUCommand, apdu_answer: &APDUAnswer) {
             );
             let answer = format!(
                 "{{\"data\":[{}], \"retcode\":{}}}",
-                answer_data, apdu_answer.retcode
+                answer_data, apdu_answer.retcode()
             );
             writer.write(&command);
             writer.write(&answer);
