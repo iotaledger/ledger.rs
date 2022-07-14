@@ -15,7 +15,7 @@ use std::collections::HashMap;
 use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
 
-use iota_ledger::LedgerBIP32Index;
+use iota_ledger_nano::LedgerBIP32Index;
 
 use ledger_transport::{APDUAnswer, APDUCommand};
 
@@ -290,7 +290,7 @@ pub fn get_transaction_unlock_blocks(
 pub fn random_essence(
     hrp: &str,
     chain: u32,
-    ledger: &mut iota_ledger::LedgerHardwareWallet,
+    ledger: &mut iota_ledger_nano::LedgerHardwareWallet,
     seed: &[u8],
     rnd: &mut SmallRng,
     non_interactive: bool,
@@ -814,9 +814,9 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     };
 
     let transport_type = if is_simulator {
-        iota_ledger::TransportTypes::TCP
+        iota_ledger_nano::TransportTypes::TCP
     } else {
-        iota_ledger::TransportTypes::NativeHID
+        iota_ledger_nano::TransportTypes::NativeHID
     };
 
     if matches.is_present("recorder") {
@@ -868,7 +868,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         None => ("iota", 0x107a),
     };
 
-    let mut ledger = iota_ledger::get_ledger_by_type(
+    let mut ledger = iota_ledger_nano::get_ledger_by_type(
         chain,
         0x80000000,
         &transport_type,
