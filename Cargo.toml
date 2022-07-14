@@ -8,7 +8,7 @@ documentation = "https://wiki.iota.org/iota.rs/welcome"
 homepage = "https://www.iota.org/"
 repository = "https://github.com/iotaledger/ledger.rs"
 license = "Apache-2.0"
-keywords = [ "iota", "shimmer", "ledger nano" ]
+keywords = [ "iota", "shimmer", "ledger-nano" ]
 categories = [ "cryptography::cryptocurrencies" ]
 
 [dependencies]
