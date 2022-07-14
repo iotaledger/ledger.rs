@@ -855,6 +855,8 @@ dependencies = [
 [[package]]
 name = "ledger-apdu"
 version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe435806c197dfeaa5efcded5e623c4b8230fd28fdf1e91e7a86e40ef2acbf90"
 dependencies = [
  "arrayref",
  "no-std-compat",
@@ -864,6 +866,8 @@ dependencies = [
 [[package]]
 name = "ledger-transport"
 version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1117f2143d92c157197785bf57711d7b02f2cfa101e162f8ca7900fb7f976321"
 dependencies = [
  "async-trait",
  "ledger-apdu",
@@ -872,6 +876,8 @@ dependencies = [
 [[package]]
 name = "ledger-transport-hid"
 version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "45ba81a1f5f24396b37211478aff7fbcd605dd4544df8dbed07b9da3c2057aee"
 dependencies = [
  "byteorder",
  "cfg-if",

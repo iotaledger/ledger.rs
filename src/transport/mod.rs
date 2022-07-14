@@ -54,7 +54,7 @@ pub fn create_transport(
     let transport = match transport_type {
         TransportTypes::TCP => Transport::TCP(TransportTCP::new("127.0.0.1", 9999, callback)),
         TransportTypes::NativeHID => {
-            Transport::NativeHID(TransportNativeHID::new(&api).map_err(|_| APIError::TransportError)?)
+            Transport::NativeHID(TransportNativeHID::new(api).map_err(|_| APIError::TransportError)?)
         }
     };
     Ok(transport)
