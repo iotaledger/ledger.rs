@@ -7,7 +7,7 @@ use std::str::FromStr;
 use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
 
-use iota_ledger::LedgerBIP32Index;
+use iota_ledger_nano::LedgerBIP32Index;
 
 use bip39::Mnemonic;
 
@@ -126,12 +126,12 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     let is_simulator = matches.is_present("is-simulator");
 
     let transport_type = if is_simulator {
-        iota_ledger::TransportTypes::TCP
+        iota_ledger_nano::TransportTypes::TCP
     } else {
-        iota_ledger::TransportTypes::NativeHID
+        iota_ledger_nano::TransportTypes::NativeHID
     };
 
-    let ledger = iota_ledger::get_ledger_by_type(0x107a, BIP32_ACCOUNT, &transport_type, None)?;
+    let ledger = iota_ledger_nano::get_ledger_by_type(0x107a, BIP32_ACCOUNT, &transport_type, None)?;
 
     let (hrp, chain) = match !ledger.is_debug_app() {
         true => ("iota", 0x107a),

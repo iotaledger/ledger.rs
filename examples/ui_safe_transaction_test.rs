@@ -3,7 +3,7 @@ use clap::{App, Arg};
 use crypto::hashes::blake2b::{Blake2b256};
 use crypto::hashes::Digest;
 
-use iota_ledger::LedgerBIP32Index;
+use iota_ledger_nano::LedgerBIP32Index;
 
 use packable::Packable;
 use bee_block::address::Address;
@@ -37,7 +37,7 @@ const HARDENED: u32 = 0x80000000;
 
 pub fn random_essence(
     chain: u32,
-    ledger: &mut iota_ledger::LedgerHardwareWallet,
+    ledger: &mut iota_ledger_nano::LedgerHardwareWallet,
 ) -> Result<bool, Box<dyn Error>> {
     // build random config
     let num_inputs : u16 = 5;
@@ -173,9 +173,9 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     let is_simulator = matches.is_present("is-simulator");
 
     let transport_type = if is_simulator {
-        iota_ledger::TransportTypes::TCP
+        iota_ledger_nano::TransportTypes::TCP
     } else {
-        iota_ledger::TransportTypes::NativeHID
+        iota_ledger_nano::TransportTypes::NativeHID
     };
 
     let chain = match matches.value_of("coin-type") {
@@ -189,7 +189,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         None => 0x107a,
     };
 
-    let mut ledger = iota_ledger::get_ledger_by_type(
+    let mut ledger = iota_ledger_nano::get_ledger_by_type(
         chain,
         HARDENED,
         &transport_type,
