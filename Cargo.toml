@@ -1,8 +1,15 @@
 [package]
 name = "iota-ledger"
-version = "0.1.1"
-authors = ["microengineer <microengineer18@gmail.com>"]
-edition = "2018"
+version = "0.1.5"
+authors = [ "IOTA Stiftung" ]
+edition = "2021"
+description = "Library for communicating with the IOTA and Shimmer Ledger Nano apps"
+documentation = "https://wiki.iota.org/iota.rs/welcome"
+homepage = "https://www.iota.org/"
+repository = "https://github.com/iotaledger/ledger.rs"
+license = "Apache-2.0"
+keywords = [ "iota", "shimmer", "ledger nano" ]
+categories = [ "cryptography::cryptocurrencies" ]
 
 [dependencies]
 futures = "0.3.6"

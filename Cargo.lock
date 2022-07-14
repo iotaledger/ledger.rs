@@ -796,7 +796,7 @@ dependencies = [
 
 [[package]]
 name = "iota-ledger"
-version = "0.1.1"
+version = "0.1.5"
 dependencies = [
  "anyhow",
  "bech32 0.7.3",
