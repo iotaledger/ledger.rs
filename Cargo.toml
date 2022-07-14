@@ -16,9 +16,6 @@ futures = "0.3.6"
 log = "0.4.11"
 thiserror = "1.0.20"
 enum-iterator = "0.6.0"
-#ledger-apdu = "0.9.0"
-#ledger-transport = "0.9.0"
-#ledger-transport-hid = "0.9.0"
 
 hidapi = { version = "1.3.4", features = ["linux-static-hidraw"], default-features = false }
 
