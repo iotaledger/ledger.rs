@@ -1,27 +1,25 @@
 use clap::{App, Arg};
 
-use crypto::hashes::blake2b::{Blake2b256};
+use crypto::hashes::blake2b::Blake2b256;
 use crypto::hashes::Digest;
 
 use iota_ledger_nano::LedgerBIP32Index;
 
-use packable::Packable;
 use bee_block::address::Address;
 use bee_block::address::Ed25519Address;
 use bee_block::input::{Input, UtxoInput};
 use bee_block::output::{BasicOutputBuilder, InputsCommitment, Output};
 use bee_block::signature::Signature::Ed25519;
+use packable::Packable;
 
 use bee_block::payload::transaction::TransactionEssence;
 use packable::PackableExt;
 
 use bee_block::output::unlock_condition::{AddressUnlockCondition, UnlockCondition};
 
-use bee_block::unlock::{Unlock};
+use bee_block::unlock::Unlock;
 
-use bee_block::payload::transaction::{
-    RegularTransactionEssenceBuilder, TransactionId,
-};
+use bee_block::payload::transaction::{RegularTransactionEssenceBuilder, TransactionId};
 
 use std::error::Error;
 
@@ -40,7 +38,7 @@ pub fn random_essence(
     ledger: &mut iota_ledger_nano::LedgerHardwareWallet,
 ) -> Result<bool, Box<dyn Error>> {
     // build random config
-    let num_inputs : u16 = 5;
+    let num_inputs: u16 = 5;
 
     // build essence and add input and output
     let mut essence_builder =
@@ -54,9 +52,7 @@ pub fn random_essence(
     let mut key_indices: Vec<LedgerBIP32Index> = Vec::new();
 
     for i in 0..num_inputs as u32 {
-        let input = Input::Utxo(
-            UtxoInput::new(TransactionId::from([0u8;32]), i as u16).unwrap(),
-        );
+        let input = Input::Utxo(UtxoInput::new(TransactionId::from([0u8; 32]), i as u16).unwrap());
         essence_builder = essence_builder.add_input(input);
 
         let input_bip32_index = LedgerBIP32Index {
@@ -67,21 +63,24 @@ pub fn random_essence(
         key_indices.push(input_bip32_index);
     }
 
-    let output_bip32_index = LedgerBIP32Index{bip32_index: 4 | HARDENED, bip32_change: HARDENED};
+    let output_bip32_index = LedgerBIP32Index {
+        bip32_index: 4 | HARDENED,
+        bip32_change: HARDENED,
+    };
 
     let output_addr_bytes: [u8; 32] = *ledger
         .get_addresses(false, output_bip32_index, 1)
         .expect("error get new address")
         .first()
         .unwrap();
-        
+
     let value_out = 1337;
 
-    let output = BasicOutputBuilder::new_with_amount(value_out)?.add_unlock_condition(
-        UnlockCondition::Address(AddressUnlockCondition::new(Address::Ed25519(
-            Ed25519Address::new(output_addr_bytes),
-        ))),
-    ).finish()?;
+    let output = BasicOutputBuilder::new_with_amount(value_out)?
+        .add_unlock_condition(UnlockCondition::Address(AddressUnlockCondition::new(
+            Address::Ed25519(Ed25519Address::new(output_addr_bytes)),
+        )))
+        .finish()?;
     essence_builder = essence_builder.add_output(Output::from(output));
 
     // finish essence
@@ -126,7 +125,8 @@ pub fn random_essence(
                 let sig = s.signature();
                 match sig {
                     Ed25519(s) => {
-                        let sig_address = Ed25519Address::new(Blake2b256::digest(s.public_key()).into());
+                        let sig_address =
+                            Ed25519Address::new(Blake2b256::digest(s.public_key()).into());
                         s.is_valid(&transaction_essence.hash()[..], &sig_address)?;
                         println!("found valid signature");
                     }
@@ -189,12 +189,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         None => 0x107a,
     };
 
-    let mut ledger = iota_ledger_nano::get_ledger_by_type(
-        chain,
-        HARDENED,
-        &transport_type,
-        None
-    )?;
+    let mut ledger = iota_ledger_nano::get_ledger_by_type(chain, HARDENED, &transport_type, None)?;
 
     random_essence(chain, &mut ledger)?;
 

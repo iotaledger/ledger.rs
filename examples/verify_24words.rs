@@ -131,7 +131,8 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         iota_ledger_nano::TransportTypes::NativeHID
     };
 
-    let ledger = iota_ledger_nano::get_ledger_by_type(0x107a, BIP32_ACCOUNT, &transport_type, None)?;
+    let ledger =
+        iota_ledger_nano::get_ledger_by_type(0x107a, BIP32_ACCOUNT, &transport_type, None)?;
 
     let (hrp, chain) = match !ledger.is_debug_app() {
         true => ("iota", 0x107a),

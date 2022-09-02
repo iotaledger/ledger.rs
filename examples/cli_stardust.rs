@@ -914,7 +914,8 @@ fn watcher_cb(apdu_command: &APDUCommand<Vec<u8>>, apdu_answer: &APDUAnswer<Vec<
             );
             let answer = format!(
                 "{{\"data\":[{}], \"retcode\":{}}}",
-                answer_data, apdu_answer.retcode()
+                answer_data,
+                apdu_answer.retcode()
             );
             writer.write(&command);
             writer.write(&answer);

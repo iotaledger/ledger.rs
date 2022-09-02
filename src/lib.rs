@@ -517,4 +517,3 @@ impl LedgerHardwareWallet {
         api::set_non_interactive_mode::exec(self.transport(), non_interactive_mode)
     }
 }
-

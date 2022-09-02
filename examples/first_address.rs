@@ -32,7 +32,6 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                 .help("select coin type (iota, smr)")
                 .takes_value(true),
         )
-
         .get_matches();
 
     let is_simulator = matches.is_present("is-simulator");
