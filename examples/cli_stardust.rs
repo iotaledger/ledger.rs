@@ -891,7 +891,7 @@ fn watcher_cb(apdu_command: &APDUCommand<Vec<u8>>, apdu_answer: &APDUAnswer<Vec<
 
     let raw_command = apdu_command.serialize();
     let mut raw_answer: Vec<u8> = Vec::new();
-    raw_answer.extend(&apdu_answer.data()[..]);
+    raw_answer.extend(apdu_answer.data());
     raw_answer.extend(&apdu_answer.retcode().to_be_bytes());
 
     match writer.format {
