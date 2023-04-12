@@ -12,7 +12,7 @@ use crate::api::constants::DataTypeEnum;
 use crate::api::errors::APIError;
 
 pub use crate::transport::transport_tcp::Callback;
-pub use crate::transport::{Transport, TransportTypes};
+pub use crate::transport::{LedgerTransport, Transport, TransportTypes};
 
 pub use crate::api::packable::{Error as PackableError, Packable, Read, Write};
 
@@ -185,9 +185,9 @@ impl LedgerHardwareWallet {
     }
 
     pub fn is_simulator(&self) -> bool {
-        match self.transport {
-            Transport::TCP(_) => true,
-            Transport::NativeHID(_) => false,
+        match self.transport.transport {
+            LedgerTransport::TCP(_) => true,
+            LedgerTransport::NativeHID(_) => false,
         }
     }
 

@@ -32,7 +32,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         .get_matches();
 
     let transport_type = iota_ledger_nano::TransportTypes::NativeHID;
-        
+
     let hrp;
     let chain;
 
@@ -52,9 +52,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         None => 5,
     };
 
-    
     for n in 0..count {
-
         let account = n | 0x80000000;
 
         let ledger = iota_ledger_nano::get_ledger_by_type(chain, account, &transport_type, None)?;
@@ -86,9 +84,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
             BIP32_INDEX & !HARDENED,
             bech32_address
         );
-        
     }
-    
 
     Ok(())
 }
