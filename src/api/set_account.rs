@@ -70,11 +70,11 @@ pub fn exec(
 
     let app_mode = match flags.app {
         Apps::AppIOTA => match coin_type {
-            0x107a => AppModes::ModeIOTAChrysalis,
-            0x1 => AppModes::ModeIOTAChrysalisTestnet,
+            // 0x107a => AppModes::ModeIOTAChrysalis,
+            // 0x1 => AppModes::ModeIOTAChrysalisTestnet,
             // IOTA + stardust
-            // 0x107a => AppModes::ModeIOTAStardust,
-            // 0x1 => AppModes::ModeIOTAStardustTestnet,
+            0x107a => AppModes::ModeIOTAStardust,
+            0x1 => AppModes::ModeIOTAStardustTestnet,
             _ => return Err(errors::APIError::IncorrectP1P2),
         },
         Apps::AppShimmer => match coin_type {

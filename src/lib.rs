@@ -288,7 +288,7 @@ impl LedgerHardwareWallet {
             }
 
             // now write block
-            api::write_data_block::exec(self.transport(), block as u8, block_data)?;
+            api::write_data_block::exec(self.transport(), block, block_data)?;
         }
         Ok(())
     }

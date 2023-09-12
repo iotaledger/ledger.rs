@@ -796,7 +796,7 @@ dependencies = [
 
 [[package]]
 name = "iota-ledger-nano"
-version = "1.0.0-alpha.3"
+version = "1.0.0-alpha.5"
 dependencies = [
  "anyhow",
  "bech32 0.7.3",
