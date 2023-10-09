@@ -20,6 +20,7 @@ pub enum APDUInstructions {
     ClearDataBuffer = 0x83,
 
     ShowFlow = 0x90,
+    PrepareBlindsigning = 0x91,
 
     // iota specific crypto instructions
     PrepareSigning = 0xa0,
@@ -54,6 +55,22 @@ pub enum Flows {
     FlowSigning = 5,
 }
 
+#[derive(Debug)]
+pub enum Apps {
+    AppIOTA = 0,
+    AppShimmer = 1,
+}
+
+pub enum AppModes {
+    ModeIOTAChrysalis = 0x00,
+    ModeIOTAChrysalisTestnet = 0x80,
+    ModeIOTAStardust = 0x01,
+    ModeIOTAStardustTestnet = 0x81,
+    ModeShimmerClaiming = 0x02,
+    ModeShimmerClaimingTestnet = 0x82,
+    ModeShimmer = 0x03,
+    ModeShimmerTestnet = 0x83,
+}
 #[derive(Debug, Copy, Clone)]
 pub enum DataTypeEnum {
     Empty = 0,

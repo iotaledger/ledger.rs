@@ -1,5 +1,5 @@
-use ledger_apdu::APDUCommand;
 use crate::Transport;
+use ledger_apdu::APDUCommand;
 
 use crate::api::packable::{Error as PackableError, Packable, Read, Write};
 
@@ -59,10 +59,7 @@ impl Packable for ResponseVec {
     }
 }
 
-pub fn exec(
-    transport: &Transport,
-    signature_index: u8,
-) -> Result<ResponseVec, errors::APIError> {
+pub fn exec(transport: &Transport, signature_index: u8) -> Result<ResponseVec, errors::APIError> {
     let cmd = APDUCommand {
         cla: constants::APDUCLASS,
         ins: constants::APDUInstructions::SignSingle as u8,

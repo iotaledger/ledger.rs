@@ -7,7 +7,7 @@ use std::str::FromStr;
 use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
 
-use iota_ledger::LedgerBIP32Index;
+use iota_ledger_nano::LedgerBIP32Index;
 
 use bip39::Mnemonic;
 
@@ -47,7 +47,7 @@ pub fn get_key(
     let bip32_path = slip10::path::BIP32Path::from_str(&path)?;
     slip10::derive_key_from_path(seed, slip10::Curve::Ed25519, &bip32_path)
 }
- 
+
 /// get address from pubkey
 pub fn get_addr_from_pubkey(pubkey: [u8; 32]) -> [u8; 32] {
     let mut hasher = VarBlake2b::new(32).unwrap();
@@ -66,7 +66,7 @@ pub fn get_addr(
     account: u32,
     index: LedgerBIP32Index,
 ) -> Result<[u8; 32], slip10::Error> {
-    let key = get_key(&seed, chain, account, index)?;
+    let key = get_key(seed, chain, account, index)?;
     let pubkey = key.public_key();
     let mut truncated = [0u8; 32];
     truncated.clone_from_slice(&pubkey[1..33]);
@@ -113,17 +113,26 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                 .help("select the simulator as transport")
                 .takes_value(false),
         )
+        .arg(
+            Arg::with_name("coin-type")
+                .short("c")
+                .long("coin-type")
+                .value_name("coin_type")
+                .help("select coin type (iota, smr)")
+                .takes_value(true),
+        )
         .get_matches();
 
     let is_simulator = matches.is_present("is-simulator");
 
     let transport_type = if is_simulator {
-        iota_ledger::TransportTypes::TCP
+        iota_ledger_nano::TransportTypes::TCP
     } else {
-        iota_ledger::TransportTypes::NativeHID
+        iota_ledger_nano::TransportTypes::NativeHID
     };
 
-    let ledger = iota_ledger::get_ledger_by_type(BIP32_ACCOUNT, &transport_type, None)?;
+    let ledger =
+        iota_ledger_nano::get_ledger_by_type(0x107a, BIP32_ACCOUNT, &transport_type, None)?;
 
     let (hrp, chain) = match !ledger.is_debug_app() {
         true => ("iota", 0x107a),

@@ -1,7 +1,7 @@
 use crate::api::packable::{Error as PackableError, Packable, Read, Write};
 
-use ledger_apdu::APDUCommand;
 use crate::Transport;
+use ledger_apdu::APDUCommand;
 
 use crate::api::{constants, errors, helpers};
 
@@ -13,6 +13,26 @@ pub struct Response {
     pub flags: u8,
     pub device: u8,
     pub is_debug_app: u8,
+}
+
+pub struct AppConfigFlags {
+    pub locked: bool,
+    pub blindsigning_enabled: bool,
+    pub app: constants::Apps,
+}
+
+impl From<u8> for AppConfigFlags {
+    fn from(flags: u8) -> Self {
+        Self {
+            locked: flags & 0x01 != 0,
+            blindsigning_enabled: flags & 0x02 != 0,
+            app: if flags & 0x04 != 0 {
+                constants::Apps::AppShimmer
+            } else {
+                constants::Apps::AppIOTA
+            },
+        }
+    }
 }
 
 impl Packable for Response {

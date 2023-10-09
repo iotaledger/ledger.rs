@@ -22,26 +22,26 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     let is_simulator = matches.is_present("is-simulator");
 
     let transport_type = if is_simulator {
-        iota_ledger::TransportTypes::TCP
+        iota_ledger_nano::TransportTypes::TCP
     } else {
-        iota_ledger::TransportTypes::NativeHID
+        iota_ledger_nano::TransportTypes::NativeHID
     };
 
-    let (app, version) = iota_ledger::get_opened_app(&transport_type)?;
+    let (app, version) = iota_ledger_nano::get_opened_app(&transport_type)?;
     println!("current app: {} {}", app, version);
 
     if app != "BOLOS" {
-        iota_ledger::exit_app(&transport_type)?;
+        iota_ledger_nano::exit_app(&transport_type)?;
         thread::sleep(time::Duration::from_secs(5));
         println!("current app: {} {}", app, version);
     }
 
     if app != "IOTA" {
-        iota_ledger::open_app(&transport_type, String::from("IOTA"))?;
+        iota_ledger_nano::open_app(&transport_type, String::from("IOTA"))?;
         thread::sleep(time::Duration::from_secs(5));
     }
 
-    let (app, version) = iota_ledger::get_opened_app(&transport_type)?;
+    let (app, version) = iota_ledger_nano::get_opened_app(&transport_type)?;
     println!("current app: {} {}", app, version);
     Ok(())
 }

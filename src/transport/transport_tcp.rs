@@ -5,18 +5,21 @@ use std::net::TcpStream;
 
 use crate::transport::errors::LedgerTCPError;
 
-pub type Callback = fn(apdu_command: &ledger_transport::APDUCommand, apdu_answer: &ledger_transport::APDUAnswer);
+pub type Callback = fn(
+    apdu_command: &ledger_transport::APDUCommand<Vec<u8>>,
+    apdu_answer: &ledger_transport::APDUAnswer<Vec<u8>>,
+);
 
 pub struct TransportTCP {
     url: String,
-    callback: Option<Callback>
+    callback: Option<Callback>,
 }
 
 impl TransportTCP {
     pub fn new(host: &str, port: u16, callback: Option<Callback>) -> Self {
         Self {
             url: format!("{}:{}", host, port),
-            callback: callback
+            callback,
         }
     }
 
@@ -28,7 +31,7 @@ impl TransportTCP {
         stream.write_all(&send_length_bytes[..])?;
 
         // then send bytes
-        stream.write_all(&raw_command)?;
+        stream.write_all(raw_command)?;
 
         let mut rcv_length_bytes = [0u8; 4];
 
@@ -43,15 +46,20 @@ impl TransportTCP {
         Ok(buf)
     }
 
-    pub async fn exchange(&self, command: &APDUCommand) -> Result<APDUAnswer, LedgerTCPError> {
+    pub async fn exchange(
+        &self,
+        command: &APDUCommand<Vec<u8>>,
+    ) -> Result<APDUAnswer<Vec<u8>>, LedgerTCPError> {
         let raw_command = command.serialize();
 
         let mut stream = TcpStream::connect(&self.url).map_err(|_| LedgerTCPError::ConnectError)?;
 
         log::debug!("successfully connected to server {}", &self.url);
 
-        let raw_answer = TransportTCP::request(&raw_command, &mut stream).map_err(|_| LedgerTCPError::InnerError)?;
-        let answer = APDUAnswer::from_answer(raw_answer);
+        let raw_answer = TransportTCP::request(&raw_command, &mut stream)
+            .map_err(|_| LedgerTCPError::InnerError)?;
+        let answer =
+            APDUAnswer::from_answer(raw_answer).map_err(|_| LedgerTCPError::ResponseError)?;
 
         if self.callback.is_some() {
             (self.callback.unwrap())(command, &answer);
@@ -60,4 +68,3 @@ impl TransportTCP {
         Ok(answer)
     }
 }
-
