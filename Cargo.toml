@@ -1,0 +1,70 @@
+[package]
+name = "iota-ledger-nano"
+version = "1.0.0"
+authors = [ "IOTA Stiftung" ]
+edition = "2021"
+description = "Library for communicating with the IOTA and Shimmer Ledger Nano apps"
+documentation = "https://wiki.iota.org/iota.rs/welcome"
+homepage = "https://www.iota.org/"
+repository = "https://github.com/iotaledger/ledger.rs"
+license = "Apache-2.0"
+keywords = [ "iota", "shimmer", "ledger-nano" ]
+categories = [ "cryptography::cryptocurrencies" ]
+
+[dependencies]
+futures = "0.3.6"
+log = "0.4.11"
+thiserror = "1.0.20"
+enum-iterator = "0.6.0"
+lazy_static = "1.4.0"
+
+hidapi = { version = "1.3.4", features = ["linux-static-hidraw"], default-features = false }
+
+ledger-apdu = { version = "0.10.0", default-features = false }
+ledger-transport-hid = { version = "0.10.0", default-features = false }
+ledger-transport = { version = "0.10.0", default-features = false }
+
+serde = { version = "1.0", features = ["derive"] }
+bech32 = "0.7.2"
+trait-async = "0.1.24"
+#lazy_static = "1.4.0"
+once_cell = "1.12.0"
+
+[features]
+default = [ ]
+ledger_nano = [ ]
+
+
+[dev-dependencies]
+# tests
+serial_test = "0.5.1"
+bee-common = { git = "https://github.com/iotaledger/bee.git", branch = "dev" }
+bee-message = { git = "https://github.com/iotaledger/bee.git", branch = "dev" }
+#iota-core = { git = "https://github.com/iotaledger/iota.rs", branch = "dev" }
+iota-crypto = { git = "https://github.com/iotaledger/crypto.rs",  branch="dev", features=["ed25519", "blake2b"] }
+bee-block = { git = "https://github.com/iotaledger/bee", rev = "146ce1011fd76f3d9f07390b002b29dd6762daf3", default-features = false, features = [ "serde", "dto" ] }
+bee-rest-api = { git = "https://github.com/iotaledger/bee", rev = "146ce1011fd76f3d9f07390b002b29dd6762daf3", default-features = false }
+bee-pow = { git = "https://github.com/iotaledger/bee", rev = "146ce1011fd76f3d9f07390b002b29dd6762daf3", default-features = false }
+packable = { version = "0.3.2", default-features = false, features = [ "serde", "primitive-types" ] }
+
+# CLI example
+log = "0.4.11"
+thiserror = "1.0.20"
+enum-iterator = "0.6.0"
+serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1.0.0", features = ["macros"] }
+ed25519 = "1.0.3"
+trait-async = "0.1.24"
+futures = "0.3"
+rand = { version = "0.8.2", features = ["small_rng"] }
+lazy_static = "1.4.0"
+bech32 = "0.7.2"
+bip39 = "1.0.0-rc1"
+slip10 = "0.4.2"
+blake2 = "0.9.1"
+anyhow = "1.0"
+env_logger = "0.8.2"
+clap = "2.33.3"
+rpassword = "0.0.4"
+
+
