@@ -73,7 +73,6 @@ fn try_get_lock(timeout: Duration) -> Result<Arc<Mutex<i32>>, APIError> {
     Err(APIError::Timeout)
 }
 
-
 // only create transport without IOTA specific calls
 pub fn create_transport(
     transport_type: &TransportTypes,

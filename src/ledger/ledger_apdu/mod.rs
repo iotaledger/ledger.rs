@@ -96,4 +96,3 @@ where
         self.retcode
     }
 }
-

@@ -74,7 +74,7 @@ impl TransportNativeHID {
         let device = device.open_device(api)?;
         let _ = device.set_blocking_mode(true);
 
-        let ledger = TransportNativeHID { device: device };
+        let ledger = TransportNativeHID { device };
 
         Ok(ledger)
     }
@@ -84,7 +84,7 @@ impl TransportNativeHID {
         channel: u16,
         apdu_command: &[u8],
     ) -> Result<i32, LedgerHIDError> {
-        let command_length = apdu_command.len() as usize;
+        let command_length = apdu_command.len();
         let mut in_data = Vec::with_capacity(command_length + 2);
         in_data.push(((command_length >> 8) & 0xFF) as u8);
         in_data.push((command_length & 0xFF) as u8);
@@ -170,7 +170,7 @@ impl TransportNativeHID {
 
             let new_chunk = &buffer[rdr.position() as usize..end_p];
 
-            info!("[{:3}] << {:}", new_chunk.len(), hex::encode(&new_chunk));
+            info!("[{:3}] << {:}", new_chunk.len(), hex::encode(new_chunk));
 
             apdu_answer.extend_from_slice(new_chunk);
 
@@ -188,13 +188,13 @@ impl TransportNativeHID {
     ) -> Result<APDUAnswer<Vec<u8>>, LedgerHIDError> {
         let device = &self.device;
 
-        if let Err(e) = Self::write_apdu(&device, LEDGER_CHANNEL, &command.serialize()) {
+        if let Err(e) = Self::write_apdu(device, LEDGER_CHANNEL, &command.serialize()) {
             debug!("Error in write_apdu: {:?}", e);
             return Err(e);
         }
 
         let mut answer: Vec<u8> = Vec::with_capacity(256);
-        if let Err(e) = Self::read_apdu(&device, LEDGER_CHANNEL, &mut answer) {
+        if let Err(e) = Self::read_apdu(device, LEDGER_CHANNEL, &mut answer) {
             debug!("Error in read_apdu: {:?}", e);
             return Err(e); // Or handle the error as you see fit
         }
