@@ -17,6 +17,8 @@ lazy_static! {
     static ref TRANSPORT_MUTEX: Arc<Mutex<i32>> = Arc::new(Mutex::new(0));
 }
 
+use std::sync::MutexGuard;
+
 #[derive(Copy, Clone)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum TransportTypes {
@@ -26,7 +28,7 @@ pub enum TransportTypes {
 
 pub struct Transport {
     pub transport: LedgerTransport,
-    _transport_mutex: Arc<Mutex<i32>>,
+    _transport_mutex: MutexGuard<'static, i32>,
 }
 
 impl Drop for Transport {
@@ -57,12 +59,12 @@ impl LedgerTransport {
     }
 }
 
-fn try_get_lock(timeout: Duration) -> Result<Arc<Mutex<i32>>, APIError> {
+fn try_get_lock(timeout: Duration) -> Result<MutexGuard<'static, i32>, APIError> {
     let start_time = Instant::now();
     while start_time.elapsed() < timeout {
-        match Arc::clone(&TRANSPORT_MUTEX).try_lock() {
-            Ok(_) => {
-                return Ok(Arc::clone(&TRANSPORT_MUTEX));
+        match TRANSPORT_MUTEX.try_lock() {
+            Ok(guard) => {
+                return Ok(guard);
             }
             Err(_) => {
                 debug!("trying to acquire transport_mutex lock...");
