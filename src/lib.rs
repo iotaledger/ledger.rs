@@ -3,9 +3,8 @@
 use std::convert::TryInto;
 use std::{thread, time};
 
-pub mod ledger_apdu {
-    pub use ledger_apdu::{APDUAnswer, APDUCommand};
-}
+pub mod ledger;
+pub use ledger::ledger_apdu::{APDUCommand, APDUAnswer};
 
 use crate::api::constants;
 use crate::api::constants::DataTypeEnum;

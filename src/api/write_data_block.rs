@@ -1,5 +1,5 @@
 use crate::Transport;
-use ledger_apdu::APDUCommand;
+use crate::APDUCommand;
 
 use crate::api::{constants, errors, helpers};
 

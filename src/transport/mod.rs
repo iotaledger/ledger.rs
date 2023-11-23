@@ -2,13 +2,15 @@ pub mod errors;
 pub mod transport_tcp;
 
 use crate::transport::transport_tcp::{Callback, TransportTCP};
+use crate::ledger::ledger_transport::{APDUAnswer, APDUCommand};
 use crate::APIError;
-use ledger_transport_hid::TransportNativeHID;
+use crate::ledger::ledger_transport_hid::TransportNativeHID;
 
 use lazy_static::lazy_static;
 use std::cell::RefCell;
 use std::sync::{Arc, Mutex, MutexGuard, Weak};
 
+use log::debug;
 struct HidApiWrapper {
     _api: RefCell<Weak<Mutex<hidapi::HidApi>>>,
 }
@@ -52,6 +54,12 @@ pub struct Transport {
     _transport_mutex: MutexGuard<'static, i32>,
 }
 
+impl Drop for Transport {
+    fn drop(&mut self) {
+        log::debug!("transport_mutex dropped");
+    }
+}
+
 #[allow(clippy::upper_case_acronyms)]
 pub enum LedgerTransport {
     TCP(TransportTCP),
@@ -61,8 +69,8 @@ pub enum LedgerTransport {
 impl LedgerTransport {
     pub(crate) async fn exchange(
         &self,
-        apdu_command: &ledger_transport::APDUCommand<Vec<u8>>,
-    ) -> Result<ledger_transport::APDUAnswer<Vec<u8>>, APIError> {
+        apdu_command: &APDUCommand<Vec<u8>>,
+    ) -> Result<APDUAnswer<Vec<u8>>, APIError> {
         match self {
             LedgerTransport::TCP(t) => t
                 .exchange(apdu_command)
@@ -80,7 +88,9 @@ pub fn create_transport(
     transport_type: &TransportTypes,
     callback: Option<Callback>,
 ) -> Result<Transport, APIError> {
+    debug!("transport_mutex acquiring");
     let transport_mutex = TRANSPORT_MUTEX.lock().unwrap();
+    debug!("transport_mutex acquiered");
     let transport = match transport_type {
         TransportTypes::TCP => Transport {
             _transport_mutex: transport_mutex,

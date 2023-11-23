@@ -16,7 +16,8 @@ use blake2::VarBlake2b;
 
 use iota_ledger_nano::LedgerBIP32Index;
 
-use ledger_transport::{APDUAnswer, APDUCommand};
+use iota_ledger_nano::{APDUCommand, APDUAnswer};
+
 use packable::Packable;
 /*
 use bee_block::address::{Address, Ed25519Address};

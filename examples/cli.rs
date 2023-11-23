@@ -10,14 +10,14 @@ use std::str::FromStr;
 
 use bip39::Mnemonic;
 
+use iota_ledger_nano::{APDUCommand, APDUAnswer};
+
 use std::collections::HashMap;
 
 use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
 
 use iota_ledger_nano::LedgerBIP32Index;
-
-use ledger_transport::{APDUAnswer, APDUCommand};
 
 use bee_message::address::{Address, Ed25519Address};
 use bee_message::input::{Input, UtxoInput};

@@ -1,4 +1,4 @@
-use ledger_transport::{APDUAnswer, APDUCommand};
+use crate::ledger::ledger_transport::{APDUAnswer, APDUCommand};
 
 use std::io::{Read, Write};
 use std::net::TcpStream;
@@ -6,8 +6,8 @@ use std::net::TcpStream;
 use crate::transport::errors::LedgerTCPError;
 
 pub type Callback = fn(
-    apdu_command: &ledger_transport::APDUCommand<Vec<u8>>,
-    apdu_answer: &ledger_transport::APDUAnswer<Vec<u8>>,
+    apdu_command: &APDUCommand<Vec<u8>>,
+    apdu_answer: &APDUAnswer<Vec<u8>>,
 );
 
 pub struct TransportTCP {

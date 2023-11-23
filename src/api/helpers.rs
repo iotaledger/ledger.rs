@@ -1,7 +1,7 @@
 use futures::executor;
 
 use crate::Transport;
-use ledger_apdu::APDUCommand;
+use crate::ledger::ledger_apdu::APDUCommand;
 
 use crate::api::{errors, packable};
 
