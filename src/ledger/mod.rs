@@ -1,4 +1,3 @@
-pub mod ledger_apdu;
-pub mod ledger_transport;
-pub mod ledger_transport_hid;
-pub mod ledger_transport_tcp;
+pub(crate) mod ledger_apdu;
+pub(crate) mod ledger_transport;
+pub(crate) mod ledger_transport_hid;

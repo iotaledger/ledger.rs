@@ -16,7 +16,7 @@ use blake2::VarBlake2b;
 
 use iota_ledger_nano::LedgerBIP32Index;
 
-use iota_ledger_nano::{APDUCommand, APDUAnswer};
+use iota_ledger_nano::{APDUAnswer, APDUCommand};
 
 use packable::Packable;
 /*

@@ -10,7 +10,7 @@ use std::str::FromStr;
 
 use bip39::Mnemonic;
 
-use iota_ledger_nano::{APDUCommand, APDUAnswer};
+use iota_ledger_nano::{APDUAnswer, APDUCommand};
 
 use std::collections::HashMap;
 

@@ -1,5 +1,5 @@
-use crate::Transport;
 use crate::ledger::ledger_apdu::APDUCommand;
+use crate::Transport;
 
 use crate::api::get_app_config;
 use crate::api::{

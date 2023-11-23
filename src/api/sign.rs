@@ -1,5 +1,5 @@
-use crate::Transport;
 use crate::ledger::ledger_apdu::APDUCommand;
+use crate::Transport;
 
 use crate::api::packable::{Error as PackableError, Packable, Read, Write};
 

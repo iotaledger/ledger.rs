@@ -5,10 +5,7 @@ use std::net::TcpStream;
 
 use crate::transport::errors::LedgerTCPError;
 
-pub type Callback = fn(
-    apdu_command: &APDUCommand<Vec<u8>>,
-    apdu_answer: &APDUAnswer<Vec<u8>>,
-);
+pub type Callback = fn(apdu_command: &APDUCommand<Vec<u8>>, apdu_answer: &APDUAnswer<Vec<u8>>);
 
 pub struct TransportTCP {
     url: String,
@@ -46,7 +43,7 @@ impl TransportTCP {
         Ok(buf)
     }
 
-    pub async fn exchange(
+    pub fn exchange(
         &self,
         command: &APDUCommand<Vec<u8>>,
     ) -> Result<APDUAnswer<Vec<u8>>, LedgerTCPError> {

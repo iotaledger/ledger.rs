@@ -44,6 +44,9 @@ pub enum APIError {
     #[error("App version too old")]
     AppTooOld,
 
+    #[error("Timeout")]
+    Timeout,
+
     #[error("unknown")]
     Unknown,
 }

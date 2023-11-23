@@ -1,45 +1,20 @@
 pub mod errors;
 pub mod transport_tcp;
 
-use crate::transport::transport_tcp::{Callback, TransportTCP};
 use crate::ledger::ledger_transport::{APDUAnswer, APDUCommand};
-use crate::APIError;
 use crate::ledger::ledger_transport_hid::TransportNativeHID;
+use crate::transport::transport_tcp::{Callback, TransportTCP};
+use crate::APIError;
 
 use lazy_static::lazy_static;
-use std::cell::RefCell;
-use std::sync::{Arc, Mutex, MutexGuard, Weak};
+use std::sync::{Arc, Mutex};
+
+use std::time::{Duration, Instant};
 
 use log::debug;
-struct HidApiWrapper {
-    _api: RefCell<Weak<Mutex<hidapi::HidApi>>>,
-}
 
 lazy_static! {
-    static ref HIDAPIWRAPPER: Arc<Mutex<HidApiWrapper>> =
-        Arc::new(Mutex::new(HidApiWrapper::new()));
-    static ref TRANSPORT_MUTEX: Mutex<i32> = Mutex::new(0);
-}
-
-impl HidApiWrapper {
-    fn new() -> Self {
-        HidApiWrapper {
-            _api: RefCell::new(Weak::new()),
-        }
-    }
-
-    fn get(&self) -> Result<Arc<Mutex<hidapi::HidApi>>, APIError> {
-        let tmp = self._api.borrow().upgrade();
-
-        if let Some(api_mutex) = tmp {
-            return Ok(api_mutex);
-        }
-
-        let hidapi = hidapi::HidApi::new().map_err(|_| APIError::TransportError)?;
-        let tmp = Arc::new(Mutex::new(hidapi));
-        self._api.replace(Arc::downgrade(&tmp));
-        Ok(tmp)
-    }
+    static ref TRANSPORT_MUTEX: Arc<Mutex<i32>> = Arc::new(Mutex::new(0));
 }
 
 #[derive(Copy, Clone)]
@@ -51,12 +26,12 @@ pub enum TransportTypes {
 
 pub struct Transport {
     pub transport: LedgerTransport,
-    _transport_mutex: MutexGuard<'static, i32>,
+    _transport_mutex: Arc<Mutex<i32>>,
 }
 
 impl Drop for Transport {
     fn drop(&mut self) {
-        log::debug!("transport_mutex dropped");
+        debug!("transport_mutex released");
     }
 }
 
@@ -67,14 +42,13 @@ pub enum LedgerTransport {
 }
 
 impl LedgerTransport {
-    pub(crate) async fn exchange(
+    pub(crate) fn exchange(
         &self,
         apdu_command: &APDUCommand<Vec<u8>>,
     ) -> Result<APDUAnswer<Vec<u8>>, APIError> {
         match self {
             LedgerTransport::TCP(t) => t
                 .exchange(apdu_command)
-                .await
                 .map_err(|_| APIError::TransportError),
             LedgerTransport::NativeHID(h) => h
                 .exchange(apdu_command)
@@ -83,24 +57,38 @@ impl LedgerTransport {
     }
 }
 
+fn try_get_lock(timeout: Duration) -> Result<Arc<Mutex<i32>>, APIError> {
+    let start_time = Instant::now();
+    while start_time.elapsed() < timeout {
+        match Arc::clone(&TRANSPORT_MUTEX).try_lock() {
+            Ok(_) => {
+                return Ok(Arc::clone(&TRANSPORT_MUTEX));
+            }
+            Err(_) => {
+                debug!("trying to acquire transport_mutex lock...");
+            }
+        }
+        std::thread::sleep(Duration::from_secs(1));
+    }
+    Err(APIError::Timeout)
+}
+
+
 // only create transport without IOTA specific calls
 pub fn create_transport(
     transport_type: &TransportTypes,
     callback: Option<Callback>,
 ) -> Result<Transport, APIError> {
-    debug!("transport_mutex acquiring");
-    let transport_mutex = TRANSPORT_MUTEX.lock().unwrap();
-    debug!("transport_mutex acquiered");
+    debug!("transport_mutex try lock");
+    let transport_mutex = try_get_lock(Duration::from_secs(30))?;
+    debug!("transport_mutex locked");
     let transport = match transport_type {
         TransportTypes::TCP => Transport {
             _transport_mutex: transport_mutex,
             transport: LedgerTransport::TCP(TransportTCP::new("127.0.0.1", 9999, callback)),
         },
         TransportTypes::NativeHID => {
-            let apiwrapper = HIDAPIWRAPPER.lock().map_err(|_| APIError::TransportError)?;
-            let api_mutex = apiwrapper.get()?;
-            let api = api_mutex.lock().map_err(|_| APIError::TransportError)?;
-
+            let api = hidapi::HidApi::new().map_err(|_| APIError::TransportError)?;
             Transport {
                 _transport_mutex: transport_mutex,
                 transport: LedgerTransport::NativeHID(

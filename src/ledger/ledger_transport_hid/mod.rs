@@ -14,16 +14,16 @@
 *  limitations under the License.
 ********************************************************************************/
 mod errors;
-pub use errors::LedgerHIDError;
 use byteorder::{BigEndian, ReadBytesExt};
+pub use errors::LedgerHIDError;
 use hidapi::{DeviceInfo, HidApi, HidDevice};
 use log::info;
 
-use std::{io::Cursor, ops::Deref, sync::Mutex};
 use log::debug;
+use std::{io::Cursor, ops::Deref};
 
+use crate::ledger::ledger_transport::{APDUAnswer, APDUCommand, Exchange};
 pub use hidapi;
-use crate::ledger::ledger_transport::{async_trait, APDUAnswer, APDUCommand, Exchange};
 
 const LEDGER_VID: u16 = 0x2c97;
 const LEDGER_USAGE_PAGE: u16 = 0xFFA0;
@@ -35,7 +35,7 @@ const LEDGER_PACKET_READ_SIZE: u8 = 64;
 const LEDGER_TIMEOUT: i32 = 10_000_000;
 
 pub struct TransportNativeHID {
-    device: Mutex<HidDevice>,
+    device: HidDevice,
 }
 
 impl TransportNativeHID {
@@ -53,6 +53,7 @@ impl TransportNativeHID {
     /// Opening the same device concurrently will lead to device lock after the first handle is closed
     /// see [issue](https://github.com/ruabmbua/hidapi-rs/issues/81)
     pub fn new(api: &HidApi) -> Result<Self, LedgerHIDError> {
+        debug!("new HID transport");
         let first_ledger = Self::list_ledgers(api)
             .next()
             .ok_or(LedgerHIDError::DeviceNotFound)?;
@@ -69,12 +70,11 @@ impl TransportNativeHID {
     /// Opening the same device concurrently will lead to device lock after the first handle is closed
     /// see [issue](https://github.com/ruabmbua/hidapi-rs/issues/81)
     pub fn open_device(api: &HidApi, device: &DeviceInfo) -> Result<Self, LedgerHIDError> {
+        debug!("open device");
         let device = device.open_device(api)?;
         let _ = device.set_blocking_mode(true);
 
-        let ledger = TransportNativeHID {
-            device: Mutex::new(device),
-        };
+        let ledger = TransportNativeHID { device: device };
 
         Ok(ledger)
     }
@@ -107,7 +107,9 @@ impl TransportNativeHID {
 
             info!("[{:3}] << {:}", buffer.len(), hex::encode(&buffer));
 
+            debug!("write_apdu writing data");
             let result = device.write(&buffer);
+            debug!("write_apdu written");
 
             match result {
                 Ok(size) => {
@@ -184,7 +186,7 @@ impl TransportNativeHID {
         &self,
         command: &APDUCommand<I>,
     ) -> Result<APDUAnswer<Vec<u8>>, LedgerHIDError> {
-        let device = self.device.lock().expect("HID device poisoned");
+        let device = &self.device;
 
         if let Err(e) = Self::write_apdu(&device, LEDGER_CHANNEL, &command.serialize()) {
             debug!("Error in write_apdu: {:?}", e);
@@ -197,10 +199,10 @@ impl TransportNativeHID {
             return Err(e); // Or handle the error as you see fit
         }
 
-        match APDUAnswer::from_answer(answer).map_err(|_| LedgerHIDError::Comm("response was too short")) {
-            Ok(o) => {
-                Ok(o)
-            },
+        match APDUAnswer::from_answer(answer)
+            .map_err(|_| LedgerHIDError::Comm("response was too short"))
+        {
+            Ok(o) => Ok(o),
             Err(e) => {
                 debug!("Error in read_apdu: {:?}", e);
                 Err(e)
@@ -209,12 +211,11 @@ impl TransportNativeHID {
     }
 }
 
-#[async_trait]
 impl Exchange for TransportNativeHID {
     type Error = LedgerHIDError;
     type AnswerType = Vec<u8>;
 
-    async fn exchange<I>(
+    fn exchange<I>(
         &self,
         command: &APDUCommand<I>,
     ) -> Result<APDUAnswer<Self::AnswerType>, Self::Error>

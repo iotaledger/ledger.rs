@@ -1,5 +1,5 @@
-use crate::Transport;
 use crate::APDUCommand;
+use crate::Transport;
 
 use crate::api::{constants, errors, helpers};
 
