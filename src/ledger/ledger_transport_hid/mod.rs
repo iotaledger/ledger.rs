@@ -17,7 +17,6 @@ mod errors;
 use byteorder::{BigEndian, ReadBytesExt};
 pub use errors::LedgerHIDError;
 use hidapi::{DeviceInfo, HidApi, HidDevice};
-use log::info;
 
 use log::debug;
 use std::sync::Mutex;
@@ -108,7 +107,7 @@ impl TransportNativeHID {
             buffer[5] = (sequence_idx & 0xFF) as u8; // sequence_idx big endian
             buffer[6..6 + chunk.len()].copy_from_slice(chunk);
 
-            info!("[{:3}] >> {:}", buffer.len(), hex::encode(&buffer));
+            debug!("[{:3}] >> {:}", buffer.len(), hex::encode(&buffer));
 
             debug!("write_apdu writing data");
             let result = device.write(&buffer);
@@ -173,7 +172,7 @@ impl TransportNativeHID {
 
             let new_chunk = &buffer[rdr.position() as usize..end_p];
 
-            info!("[{:3}] << {:}", new_chunk.len(), hex::encode(new_chunk));
+            debug!("[{:3}] << {:}", new_chunk.len(), hex::encode(new_chunk));
 
             apdu_answer.extend_from_slice(new_chunk);
 
