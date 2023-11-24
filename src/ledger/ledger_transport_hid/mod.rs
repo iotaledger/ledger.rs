@@ -108,7 +108,7 @@ impl TransportNativeHID {
             buffer[5] = (sequence_idx & 0xFF) as u8; // sequence_idx big endian
             buffer[6..6 + chunk.len()].copy_from_slice(chunk);
 
-            info!("[{:3}] << {:}", buffer.len(), hex::encode(&buffer));
+            info!("[{:3}] >> {:}", buffer.len(), hex::encode(&buffer));
 
             debug!("write_apdu writing data");
             let result = device.write(&buffer);
