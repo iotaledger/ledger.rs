@@ -1,9 +1,8 @@
 pub mod errors;
-pub mod transport_tcp;
 
 use crate::ledger::ledger_transport::{APDUAnswer, APDUCommand};
 use crate::ledger::ledger_transport_hid::TransportNativeHID;
-use crate::transport::transport_tcp::{Callback, TransportTCP};
+use crate::ledger::ledger_transport_tcp::{Callback, TransportTCP};
 use crate::APIError;
 
 use lazy_static::lazy_static;
