@@ -13,6 +13,7 @@
 *  See the License for the specific language governing permissions and
 *  limitations under the License.
 ********************************************************************************/
+// changes: removed code we don't need
 //! This crate contains a couple of utilities to talk via the APDU protocol to Ledger devices
 
 use core::ops::Deref;

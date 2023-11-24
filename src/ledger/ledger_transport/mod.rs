@@ -13,6 +13,7 @@
 *  See the License for the specific language governing permissions and
 *  limitations under the License.
 ********************************************************************************/
+// changes: removed async
 //! Generic APDU transport library for Ledger Nano S/X apps
 
 #![deny(trivial_casts, trivial_numeric_casts)]

@@ -13,6 +13,7 @@
 *  See the License for the specific language governing permissions and
 *  limitations under the License.
 ********************************************************************************/
+// changes: removed asyncs, added additional debug messages
 mod errors;
 use byteorder::{BigEndian, ReadBytesExt};
 pub use errors::LedgerHIDError;
