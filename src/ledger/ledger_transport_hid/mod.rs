@@ -20,6 +20,7 @@ use hidapi::{DeviceInfo, HidApi, HidDevice};
 use log::info;
 
 use log::debug;
+use std::sync::Mutex;
 use std::{io::Cursor, ops::Deref};
 
 use crate::ledger::ledger_transport::{APDUAnswer, APDUCommand, Exchange};
@@ -35,7 +36,7 @@ const LEDGER_PACKET_READ_SIZE: u8 = 64;
 const LEDGER_TIMEOUT: i32 = 10_000_000;
 
 pub struct TransportNativeHID {
-    device: HidDevice,
+    device: Mutex<HidDevice>,
 }
 
 impl TransportNativeHID {
@@ -74,7 +75,9 @@ impl TransportNativeHID {
         let device = device.open_device(api)?;
         let _ = device.set_blocking_mode(true);
 
-        let ledger = TransportNativeHID { device };
+        let ledger = TransportNativeHID {
+            device: Mutex::new(device),
+        };
 
         Ok(ledger)
     }
@@ -186,15 +189,15 @@ impl TransportNativeHID {
         &self,
         command: &APDUCommand<I>,
     ) -> Result<APDUAnswer<Vec<u8>>, LedgerHIDError> {
-        let device = &self.device;
+        let device = self.device.lock().expect("HID device poisoned");
 
-        if let Err(e) = Self::write_apdu(device, LEDGER_CHANNEL, &command.serialize()) {
+        if let Err(e) = Self::write_apdu(&device, LEDGER_CHANNEL, &command.serialize()) {
             debug!("Error in write_apdu: {:?}", e);
             return Err(e);
         }
 
         let mut answer: Vec<u8> = Vec::with_capacity(256);
-        if let Err(e) = Self::read_apdu(device, LEDGER_CHANNEL, &mut answer) {
+        if let Err(e) = Self::read_apdu(&device, LEDGER_CHANNEL, &mut answer) {
             debug!("Error in read_apdu: {:?}", e);
             return Err(e); // Or handle the error as you see fit
         }
