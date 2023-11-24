@@ -199,7 +199,7 @@ impl TransportNativeHID {
         let mut answer: Vec<u8> = Vec::with_capacity(256);
         if let Err(e) = Self::read_apdu(&device, LEDGER_CHANNEL, &mut answer) {
             debug!("Error in read_apdu: {:?}", e);
-            return Err(e); // Or handle the error as you see fit
+            return Err(e);
         }
 
         match APDUAnswer::from_answer(answer)
