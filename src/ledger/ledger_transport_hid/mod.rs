@@ -33,7 +33,7 @@ const LEDGER_CHANNEL: u16 = 0x0101;
 // so the actual buffer is 64 bytes
 const LEDGER_PACKET_WRITE_SIZE: u8 = 65;
 const LEDGER_PACKET_READ_SIZE: u8 = 64;
-const LEDGER_TIMEOUT: i32 = 10_000_000;
+const LEDGER_TIMEOUT: i32 = 30_000;
 
 pub struct TransportNativeHID {
     device: Mutex<HidDevice>,
