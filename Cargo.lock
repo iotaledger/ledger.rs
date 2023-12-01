@@ -896,7 +896,7 @@ dependencies = [
 
 [[package]]
 name = "iota-ledger-nano"
-version = "1.0.0-f824a29"
+version = "1.0.0-e39faa7"
 dependencies = [
  "anyhow",
  "arrayref",
