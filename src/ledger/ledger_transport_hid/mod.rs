@@ -110,9 +110,9 @@ impl TransportNativeHID {
 
             debug!("[{:3}] >> {:}", buffer.len(), hex::encode(&buffer));
 
-            debug!("write_apdu writing data");
+            //debug!("write_apdu writing data");
             let result = device.write(&buffer);
-            debug!("write_apdu written");
+            //debug!("write_apdu written");
 
             match result {
                 Ok(size) => {
@@ -136,11 +136,11 @@ impl TransportNativeHID {
         let mut buffer = vec![0u8; LEDGER_PACKET_READ_SIZE as usize];
         let mut sequence_idx = 0u16;
         let mut expected_apdu_len = 0usize;
-        debug!("read_apdu enter loop");
+        //debug!("read_apdu enter loop");
         loop {
-            debug!("read_apdu waiting for data");
+            //debug!("read_apdu waiting for data");
             let res = device.read_timeout(&mut buffer, LEDGER_TIMEOUT)?;
-            debug!("read_apdu received data: {}", res);
+            //debug!("read_apdu received data: {}", res);
 
             if (sequence_idx == 0 && res < 7) || res < 5 {
                 return Err(LedgerHIDError::Comm("Read error. Incomplete header"));
