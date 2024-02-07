@@ -57,8 +57,8 @@ pub fn exec(
     }
 
     // IOTA App
-    // 0x00: (107a) IOTA + Chrysalis (default, backwards compatible)
-    // 0x80:    (1) IOTA + Chrysalis Testnet
+    // 0x00: unused (was formerly IOTA + Chrysalis)
+    // 0x80: unused (was formerly IOTA + Chrysalis Testnet)
     // 0x01: (107a) IOTA + Stardust
     // 0x81:    (1) IOTA + Stardust Testnet
 
@@ -70,10 +70,9 @@ pub fn exec(
 
     let app_mode = match flags.app {
         Apps::AppIOTA => match coin_type {
-            // 0x107a => AppModes::ModeIOTAChrysalis,
-            // 0x1 => AppModes::ModeIOTAChrysalisTestnet,
             // IOTA + stardust
             0x107a => AppModes::ModeIOTAStardust,
+            // IOTA Testnet + stardust
             0x1 => AppModes::ModeIOTAStardustTestnet,
             _ => return Err(errors::APIError::IncorrectP1P2),
         },

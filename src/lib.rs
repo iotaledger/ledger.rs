@@ -19,6 +19,7 @@ pub mod api;
 pub mod transport;
 
 const MINIMUM_APP_VERSION: u32 = 6002;
+const MINIMUM_APP_VERSION_GENERATE_PUBLIC_KEYS: u32 = 8007; // generate public keys supported starting with 0.8.7
 
 #[derive(Default, Debug, Clone, Copy, Hash, Eq, PartialEq)]
 pub struct LedgerBIP32Index {
@@ -55,6 +56,7 @@ pub enum LedgerDeviceTypes {
 }
 
 pub struct LedgerHardwareWallet {
+    version: u32,
     transport: Transport,
     transport_type: TransportTypes,
     device_type: LedgerDeviceTypes,
@@ -166,6 +168,7 @@ impl LedgerHardwareWallet {
         let data_buffer_state = crate::api::get_data_buffer_state::exec(&transport)?;
 
         Ok(LedgerHardwareWallet {
+            version,
             transport,
             transport_type: *transport_type,
             device_type,
@@ -221,6 +224,7 @@ impl LedgerHardwareWallet {
 
         // is buffer state okay? (read allowed, contains addresses, valid flag set)
         if dbs.data_type as u8 != constants::DataTypeEnum::GeneratedAddress as u8
+            && dbs.data_type as u8 != constants::DataTypeEnum::GeneratedPublicKeys as u8
             && dbs.data_type as u8 != constants::DataTypeEnum::Signatures as u8
         {
             return Err(APIError::CommandNotAllowed);
@@ -317,14 +321,6 @@ impl LedgerHardwareWallet {
         bip32: LedgerBIP32Index,
         count: usize,
     ) -> Result<Vec<[u8; constants::ADDRESS_SIZE_BYTES]>, api::errors::APIError> {
-        // if not interactive, show "generating addresses"
-        if !show {
-            api::show_flow::show_generating_addresses(self.transport())?;
-            // give the ledger time to display the screen
-            // before generating addresses
-            thread::sleep(time::Duration::from_millis(250));
-        }
-
         // clear data buffer before addresses can be generated
         api::clear_data_buffer::exec(self.transport())?;
 
@@ -350,11 +346,45 @@ impl LedgerHardwareWallet {
             addresses.push(addr);
         }
 
-        if !show {
-            api::show_flow::show_main_menu(self.transport())?;
+        Ok(addresses)
+    }
+
+    pub fn get_public_keys(
+        &self,
+        show: bool,
+        bip32: LedgerBIP32Index,
+        count: usize,
+    ) -> Result<Vec<[u8; constants::PUBLIC_KEY_SIZE_BYTES]>, api::errors::APIError> {
+        // generate public key api call exists >= 0.8.7
+        if self.version < MINIMUM_APP_VERSION_GENERATE_PUBLIC_KEYS {
+            return Err(APIError::AppTooOld);
         }
 
-        Ok(addresses)
+        // clear data buffer before public keys can be generated
+        api::clear_data_buffer::exec(self.transport())?;
+
+        let max_count = self.data_buffer_size / constants::PUBLIC_KEY_SIZE_BYTES;
+
+        if count > max_count {
+            return Err(api::errors::APIError::CommandInvalidData);
+        }
+
+        // generate one or more public key(s)
+        api::generate_public_key::exec(self.transport(), show, bip32, count as u32)?;
+
+        // read addresses from device
+        let buffer = self.read_data_bufer()?;
+
+        let mut public_keys: Vec<[u8; 32]> = Vec::new();
+        for i in 0_usize..count {
+            let addr = buffer
+                [i * constants::PUBLIC_KEY_SIZE_BYTES..(i + 1) * constants::PUBLIC_KEY_SIZE_BYTES]
+                .try_into()
+                .unwrap(); // each 33 bytes one address
+            public_keys.push(addr);
+        }
+
+        Ok(public_keys)
     }
 
     pub fn get_first_address(
@@ -478,7 +508,6 @@ impl LedgerHardwareWallet {
     ///
     /// The publicly usable function for signing an essence.
     pub fn sign(&self, num_inputs: u16) -> Result<Vec<u8>, api::errors::APIError> {
-        api::show_flow::show_signing(self.transport())?;
         thread::sleep(time::Duration::from_millis(500));
 
         let mut signatures: Vec<u8> = Vec::new();
@@ -487,13 +516,6 @@ impl LedgerHardwareWallet {
             let mut signature = api::sign::exec(self.transport(), signature_idx)?;
             signatures.append(&mut signature.data);
         }
-
-        // show "signing successfully" for 500ms
-        api::show_flow::show_for_ms(
-            self.transport(),
-            constants::Flows::FlowSignedSuccessfully,
-            1500,
-        )?;
 
         Ok(signatures)
     }
