@@ -3,15 +3,14 @@
 use std::convert::TryInto;
 use std::{thread, time};
 
-pub mod ledger_apdu {
-    pub use ledger_apdu::{APDUAnswer, APDUCommand};
-}
+pub mod ledger;
+pub use ledger::ledger_apdu::{APDUAnswer, APDUCommand};
 
 use crate::api::constants;
 use crate::api::constants::DataTypeEnum;
 use crate::api::errors::APIError;
 
-pub use crate::transport::transport_tcp::Callback;
+pub use crate::ledger::ledger_transport_tcp::Callback;
 pub use crate::transport::{LedgerTransport, Transport, TransportTypes};
 
 pub use crate::api::packable::{Error as PackableError, Packable, Read, Write};
@@ -68,7 +67,7 @@ pub fn get_ledger_by_type(
     coin_type: u32,
     bip32_account: u32,
     transport_type: &TransportTypes,
-    callback: Option<crate::transport::transport_tcp::Callback>,
+    callback: Option<crate::ledger::ledger_transport_tcp::Callback>,
 ) -> Result<Box<LedgerHardwareWallet>, APIError> {
     let ledger = crate::LedgerHardwareWallet::new(transport_type, callback)?;
 

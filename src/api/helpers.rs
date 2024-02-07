@@ -1,7 +1,5 @@
-use futures::executor;
-
+use crate::ledger::ledger_apdu::APDUCommand;
 use crate::Transport;
-use ledger_apdu::APDUCommand;
 
 use crate::api::{errors, packable};
 
@@ -9,7 +7,7 @@ pub fn exec<T: packable::Packable>(
     transport: &Transport,
     cmd: APDUCommand<Vec<u8>>,
 ) -> Result<T, errors::APIError> {
-    match executor::block_on(transport.transport.exchange(&cmd)) {
+    match transport.transport.exchange(&cmd) {
         Ok(resp) => {
             if resp.retcode() != 0x9000 {
                 return Err(errors::APIError::get_error(resp.retcode()));

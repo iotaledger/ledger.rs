@@ -16,7 +16,8 @@ use blake2::VarBlake2b;
 
 use iota_ledger_nano::LedgerBIP32Index;
 
-use ledger_transport::{APDUAnswer, APDUCommand};
+use iota_ledger_nano::{APDUAnswer, APDUCommand};
+
 use packable::Packable;
 /*
 use bee_block::address::{Address, Ed25519Address};
@@ -222,7 +223,7 @@ pub fn get_transaction_unlock_blocks_blindsigning_essence_hash(
         // If not, we should create a signature unlock block
         let private_key = get_key(chain, &seed, account, *bip32_index).unwrap();
 
-        let iota_priv_key = ed25519::SecretKey::from_bytes(private_key.key);
+        let iota_priv_key = ed25519::SecretKey::from_bytes(&private_key.key);
 
         let public_key = private_key.public_key();
         let mut public_key_trunc = [0u8; 32];
@@ -280,7 +281,7 @@ pub fn get_transaction_unlock_blocks_essence_hash(
             // If not, we should create a signature unlock block
             let private_key = get_key(chain, &seed, account, recorder.bip32_index).unwrap();
 
-            let iota_priv_key = ed25519::SecretKey::from_bytes(private_key.key);
+            let iota_priv_key = ed25519::SecretKey::from_bytes(&private_key.key);
 
             let public_key = private_key.public_key();
             let mut public_key_trunc = [0u8; 32];

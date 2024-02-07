@@ -1,6 +1,6 @@
 [package]
 name = "iota-ledger-nano"
-version = "1.0.0"
+version = "1.0.1"
 authors = [ "IOTA Stiftung" ]
 edition = "2021"
 description = "Library for communicating with the IOTA and Shimmer Ledger Nano apps"
@@ -12,23 +12,14 @@ keywords = [ "iota", "shimmer", "ledger-nano" ]
 categories = [ "cryptography::cryptocurrencies" ]
 
 [dependencies]
-futures = "0.3.6"
 log = "0.4.11"
 thiserror = "1.0.20"
-enum-iterator = "0.6.0"
 lazy_static = "1.4.0"
+arrayref = "0.3.6"
+hex = "0.4"
+byteorder = "1.4"
 
-hidapi = { version = "1.3.4", features = ["linux-static-hidraw"], default-features = false }
-
-ledger-apdu = { version = "0.10.0", default-features = false }
-ledger-transport-hid = { version = "0.10.0", default-features = false }
-ledger-transport = { version = "0.10.0", default-features = false }
-
-serde = { version = "1.0", features = ["derive"] }
-bech32 = "0.7.2"
-trait-async = "0.1.24"
-#lazy_static = "1.4.0"
-once_cell = "1.12.0"
+hidapi = { version = "2.4.1", features = ["linux-static-hidraw"], default-features = false }
 
 [features]
 default = [ ]
