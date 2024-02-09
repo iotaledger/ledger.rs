@@ -1,7 +1,6 @@
 //! Library
 
 use std::convert::TryInto;
-use std::{thread, time};
 
 pub mod ledger;
 pub use ledger::ledger_apdu::{APDUAnswer, APDUCommand};
