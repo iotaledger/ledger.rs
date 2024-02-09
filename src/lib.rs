@@ -508,8 +508,6 @@ impl LedgerHardwareWallet {
     ///
     /// The publicly usable function for signing an essence.
     pub fn sign(&self, num_inputs: u16) -> Result<Vec<u8>, api::errors::APIError> {
-        thread::sleep(time::Duration::from_millis(500));
-
         let mut signatures: Vec<u8> = Vec::new();
 
         for signature_idx in 0..num_inputs as u8 {
