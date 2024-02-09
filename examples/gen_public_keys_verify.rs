@@ -1,7 +1,9 @@
 use bech32::{self, ToBase32};
 use clap::{App, Arg};
+use iota_ledger_nano::api::constants::{CoinType, AppModes};
 
 use std::error::Error;
+use std::convert::From;
 
 use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
@@ -67,18 +69,20 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     };
 
     let hrp;
-    let chain;
+    let app_mode;
 
-    (hrp, chain) = match matches.value_of("coin-type") {
+    (hrp, app_mode) = match matches.value_of("coin-type") {
         Some(c) => match c {
-            "iota" => ("iota", 0x107a),
-            "smr" => ("smr", 0x107b),
-            "rms" => ("rms", 0x1),
-            "atoi" => ("atoi", 0x1),
+            "iota" => ("iota", AppModes::ModeIOTANova),
+            "smr" => ("smr", AppModes::ModeShimmerNova),
+            "rms" => ("rms", AppModes::ModeShimmerNovaTestnet),
+            "atoi" => ("atoi", AppModes::ModeIOTAStardustTestnet),
             _ => panic!("unknown coin type"),
         },
-        None => ("smr", 0x107b),
+        None => ("smr", AppModes::ModeShimmer),
     };
+
+    let chain = CoinType::from(app_mode);
 
     let count = match matches.value_of("number") {
         Some(c) => c.parse::<u32>().unwrap(),
@@ -88,7 +92,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     for n in 0..count {
         let account = n | 0x80000000;
 
-        let ledger = iota_ledger_nano::get_ledger_by_type(chain, account, &transport_type, None)?;
+        let ledger = iota_ledger_nano::get_ledger_by_app_mode(app_mode, account, &transport_type, None)?;
 
         let bip32_indices = LedgerBIP32Index {
             bip32_change: BIP32_CHANGE,
@@ -130,7 +134,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
         println!(
             "validation successful! Wallet address (2c'/{:x}'/{:x}'/{:x}'/{:x}'): {} (0x{})",
-            chain,
+            chain as i32,
             account & !HARDENED,
             BIP32_CHANGE & !HARDENED,
             BIP32_INDEX & !HARDENED,

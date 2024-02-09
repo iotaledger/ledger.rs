@@ -6,7 +6,7 @@ pub mod ledger;
 pub use ledger::ledger_apdu::{APDUAnswer, APDUCommand};
 
 use crate::api::constants;
-use crate::api::constants::DataTypeEnum;
+use crate::api::constants::{AppConfigFlags, AppModes, Apps, DataTypeEnum, CoinType};
 use crate::api::errors::APIError;
 
 pub use crate::ledger::ledger_transport_tcp::Callback;
@@ -74,6 +74,21 @@ pub fn get_ledger_by_type(
 
     // set account
     ledger.set_account(coin_type, bip32_account)?;
+
+    Ok(Box::new(ledger))
+}
+
+/// Get Ledger by transport_type
+pub fn get_ledger_by_app_mode(
+    app_mode: AppModes,
+    bip32_account: u32,
+    transport_type: &TransportTypes,
+    callback: Option<crate::ledger::ledger_transport_tcp::Callback>,
+) -> Result<Box<LedgerHardwareWallet>, APIError> {
+    let ledger = crate::LedgerHardwareWallet::new(transport_type, callback)?;
+
+    // set account
+    ledger.set_account_by_app_mode(app_mode, bip32_account)?;
 
     Ok(Box::new(ledger))
 }
@@ -307,11 +322,82 @@ impl LedgerHardwareWallet {
     /// third component of the BIP32 path. The account index remains valid until the API is reset.
     ///
     /// The MSB (=hardened) always must be set.
+    /// deprecated, will be removed in future
     pub fn set_account(&self, coin_type: u32, bip32_account: u32) -> Result<(), APIError> {
         let app_config = crate::api::get_app_config::exec(self.transport())?;
 
-        api::set_account::exec(coin_type, app_config, self.transport(), bip32_account)?;
+        let flags = AppConfigFlags::from(app_config.flags);
+
+        if ![0x1, 0x107a, 0x107b].contains(&coin_type) {
+            return Err(APIError::IncorrectP1P2);
+        }
+
+        // IOTA App
+        // 0x00: unused (was formerly IOTA + Chrysalis)
+        // 0x80: unused (was formerly IOTA + Chrysalis Testnet)
+        // 0x01: (107a) IOTA + Stardust
+        // 0x81:    (1) IOTA + Stardust Testnet
+
+        // Shimmer App
+        // 0x02: (107a) Shimmer Claiming (from IOTA)
+        // 0x82:    (1) Shimmer Claiming (from IOTA) (Testnet)
+        // 0x03: (107b) Shimmer (default)
+        // 0x83:    (1) Shimmer Testnet
+
+        let app_mode = match flags.app {
+            Apps::AppIOTA => match coin_type {
+                // IOTA + stardust
+                0x107a => AppModes::ModeIOTAStardust,
+                // IOTA Testnet + stardust
+                0x1 => AppModes::ModeIOTAStardustTestnet,
+                _ => return Err(APIError::IncorrectP1P2),
+            },
+            Apps::AppShimmer => match coin_type {
+                // shimmer claiming
+                0x107a => AppModes::ModeShimmerClaiming,
+                // shimmer
+                0x107b => AppModes::ModeShimmer,
+                // shimmer claiming / shimmer testnet
+                // use account to differenciate if claiming or not
+                0x1 => {
+                    if bip32_account & 0x40000000 != 0 {
+                        AppModes::ModeShimmerClaimingTestnet
+                    } else {
+                        AppModes::ModeShimmerTestnet
+                    }
+                }
+                _ => return Err(APIError::IncorrectP1P2),
+            },
+            _ => return Err(APIError::WrongApp),
+        };
+
+        api::set_account::exec(app_mode as u8, self.transport(), bip32_account)?;
         Ok(())
+    }
+
+    /// Set BIP32 Account Index and App Mode
+    ///
+    /// For all crypto operations following BIP32 path is used: `2c'/107a'/account'/index'`. This command sets the
+    /// third component of the BIP32 path. The account index remains valid until the API is reset.
+    ///
+    /// The MSB (=hardened) always must be set.
+    pub fn set_account_by_app_mode(
+        &self,
+        app_mode: AppModes,
+        bip32_account: u32,
+    ) -> Result<CoinType, APIError> {
+        let app_config = crate::api::get_app_config::exec(self.transport())?;
+
+        let flags = AppConfigFlags::from(app_config.flags);
+
+        // check if the correct app is opened
+        if Apps::from(app_mode) != flags.app {
+            return Err(APIError::WrongApp);
+        }
+
+        api::set_account::exec(app_mode as u8, self.transport(), bip32_account)?;
+
+        Ok(CoinType::from(app_mode))
     }
 
     pub fn get_addresses(
@@ -462,10 +548,10 @@ impl LedgerHardwareWallet {
     pub fn prepare_blind_signing(
         &self,
         key_indices: Vec<LedgerBIP32Index>,
-        essence_hash: Vec<u8>,
+        signing_input: Vec<u8>,
     ) -> Result<(), api::errors::APIError> {
         // clone buffer because we have to add the key indices after the essence
-        let mut buffer: Vec<u8> = essence_hash.to_vec();
+        let mut buffer: Vec<u8> = signing_input.to_vec();
         let key_number: u16 = key_indices.len() as u16;
         key_number
             .pack(&mut buffer)
@@ -480,7 +566,7 @@ impl LedgerHardwareWallet {
         self.write_data_buffer(buffer)?;
 
         // now validate essence
-        api::prepare_blind_signing::exec(self.transport())?;
+        api::prepare_blind_signing::exec(self.transport(), (signing_input.len() >> 5) as u8)?;
 
         // get buffer state
         let dbs = api::get_data_buffer_state::exec(self.transport())?;

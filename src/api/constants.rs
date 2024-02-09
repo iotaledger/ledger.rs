@@ -48,12 +48,21 @@ pub(crate) enum APDUInstructionsBolos {
     OpenAppE0 = 0xd8,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Apps {
     AppIOTA = 0,
     AppShimmer = 1,
+    Unknown,
 }
 
+#[derive(Copy, Clone)]
+pub enum CoinType {
+    IOTA = 0x107a,
+    Shimmer = 0x107b,
+    Testnet = 0x1,
+}
+
+#[derive(Copy, Clone)]
 pub enum AppModes {
     ModeIOTAStardust = 0x01,
     ModeIOTAStardustTestnet = 0x81,
@@ -61,6 +70,53 @@ pub enum AppModes {
     ModeShimmerClaimingTestnet = 0x82,
     ModeShimmer = 0x03,
     ModeShimmerTestnet = 0x83,
+    ModeIOTANova = 0x04,
+    ModeIOTANovaTestnet = 0x84,
+    ModeShimmerNova = 0x05,
+    ModeShimmerNovaTestnet = 0x85,
+}
+
+impl From<AppModes> for CoinType {
+    fn from(app_mode: AppModes) -> Self {
+        match app_mode {
+            AppModes::ModeShimmerClaiming | AppModes::ModeIOTAStardust | AppModes::ModeIOTANova => {
+                CoinType::IOTA
+            }
+            AppModes::ModeShimmer | AppModes::ModeShimmerNova => CoinType::Shimmer,
+            AppModes::ModeShimmerClaimingTestnet
+            | AppModes::ModeIOTAStardustTestnet
+            | AppModes::ModeShimmerTestnet
+            | AppModes::ModeIOTANovaTestnet
+            | AppModes::ModeShimmerNovaTestnet => CoinType::Testnet,
+        }
+    }
+}
+
+impl From<AppModes> for Apps {
+    fn from(app_mode: AppModes) -> Self {
+        match app_mode {
+            AppModes::ModeShimmerClaiming
+            | AppModes::ModeIOTAStardust
+            | AppModes::ModeIOTAStardustTestnet
+            | AppModes::ModeIOTANova
+            | AppModes::ModeIOTANovaTestnet => Apps::AppIOTA,
+            AppModes::ModeShimmerClaimingTestnet
+            | AppModes::ModeShimmer
+            | AppModes::ModeShimmerTestnet
+            | AppModes::ModeShimmerNova
+            | AppModes::ModeShimmerNovaTestnet => Apps::AppShimmer,
+        }
+    }
+}
+
+impl From<u8> for Apps {
+    fn from(app: u8) -> Self {
+        match app {
+            0 => Apps::AppIOTA,
+            1 => Apps::AppShimmer,
+            _ => Apps::Unknown,
+        }
+    }
 }
 #[derive(Debug, Copy, Clone)]
 pub enum DataTypeEnum {
@@ -86,6 +142,26 @@ impl DataTypeEnum {
             5 => Self::Locked,
             6 => Self::GeneratedPublicKeys,
             _ => Self::Unknown,
+        }
+    }
+}
+
+pub struct AppConfigFlags {
+    pub locked: bool,
+    pub blindsigning_enabled: bool,
+    pub app: Apps,
+}
+
+impl From<u8> for AppConfigFlags {
+    fn from(flags: u8) -> Self {
+        Self {
+            locked: flags & 0x01 != 0,
+            blindsigning_enabled: flags & 0x02 != 0,
+            app: if flags & 0x04 != 0 {
+                Apps::AppShimmer
+            } else {
+                Apps::AppIOTA
+            },
         }
     }
 }

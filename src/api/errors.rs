@@ -47,6 +47,9 @@ pub enum APIError {
     #[error("Timeout")]
     Timeout,
 
+    #[error("Wrong App")]
+    WrongApp,
+
     #[error("unknown")]
     Unknown,
 }
