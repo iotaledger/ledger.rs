@@ -6,6 +6,7 @@ pub const APDUCLASS: u8 = 0x7b;
 // everything is ED25519 ... no need for type
 pub const ADDRESS_WITH_TYPE_SIZE_BYTES: usize = 33;
 pub const ADDRESS_SIZE_BYTES: usize = 32;
+pub const PUBLIC_KEY_SIZE_BYTES: usize = 32;
 
 pub enum APDUInstructions {
     None = 0x00,
@@ -28,6 +29,7 @@ pub enum APDUInstructions {
     Sign = 0xa2,
     UserConfirm = 0xa3,
     SignSingle = 0xa4,
+    GeneratePublicKeys = 0xa5,
 
     // commands for debug mode
     DumpMemory = 0x66,
@@ -46,15 +48,6 @@ pub(crate) enum APDUInstructionsBolos {
     OpenAppE0 = 0xd8,
 }
 
-pub enum Flows {
-    FlowMainMenu = 0,
-    FlowGeneratingAddresses = 1,
-    FlowGenericError = 2,
-    FlowRejected = 3,
-    FlowSignedSuccessfully = 4,
-    FlowSigning = 5,
-}
-
 #[derive(Debug)]
 pub enum Apps {
     AppIOTA = 0,
@@ -62,8 +55,6 @@ pub enum Apps {
 }
 
 pub enum AppModes {
-    ModeIOTAChrysalis = 0x00,
-    ModeIOTAChrysalisTestnet = 0x80,
     ModeIOTAStardust = 0x01,
     ModeIOTAStardustTestnet = 0x81,
     ModeShimmerClaiming = 0x02,
@@ -79,6 +70,7 @@ pub enum DataTypeEnum {
     UserConfirmedEssence = 3,
     Signatures = 4,
     Locked = 5,
+    GeneratedPublicKeys = 6,
 
     Unknown = 255,
 }
@@ -92,6 +84,7 @@ impl DataTypeEnum {
             3 => Self::UserConfirmedEssence,
             4 => Self::Signatures,
             5 => Self::Locked,
+            6 => Self::GeneratedPublicKeys,
             _ => Self::Unknown,
         }
     }
