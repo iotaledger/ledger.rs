@@ -1,6 +1,6 @@
 [package]
 name = "iota-ledger-nano"
-version = "1.0.4-alpha.1"
+version = "1.0.4-alpha.2"
 authors = [ "IOTA Stiftung" ]
 edition = "2021"
 description = "Library for communicating with the IOTA and Shimmer Ledger Nano apps"
@@ -24,6 +24,7 @@ hidapi = { version = "2.4.1", features = ["linux-static-hidraw"], default-featur
 [features]
 default = [ ]
 ledger_nano = [ ]
+nova = [ ]
 
 
 [dev-dependencies]

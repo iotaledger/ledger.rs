@@ -4,6 +4,7 @@ use clap::{App, Arg};
 use std::error::Error;
 
 use iota_ledger_nano::LedgerBIP32Index;
+use iota_ledger_nano::api::constants::Protocols;
 
 const HARDENED: u32 = 0x80000000;
 
@@ -55,7 +56,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         None => ("iota", 0x107a),
     };
 
-    let ledger = iota_ledger_nano::get_ledger_by_type(chain, BIP32_ACCOUNT, &transport_type, None)?;
+    let ledger = iota_ledger_nano::get_ledger_by_type(chain, Protocols::Stardust, BIP32_ACCOUNT, &transport_type, None)?;
 
     let bip32_indices = LedgerBIP32Index {
         bip32_change: BIP32_CHANGE,

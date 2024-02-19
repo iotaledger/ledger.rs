@@ -1,9 +1,8 @@
 use bech32::{self, ToBase32};
 use clap::{App, Arg};
-use iota_ledger_nano::api::constants::{CoinType, AppModes};
+use iota_ledger_nano::api::constants::{CoinType, Protocols};
 
 use std::error::Error;
-use std::convert::From;
 
 use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
@@ -69,20 +68,18 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     };
 
     let hrp;
-    let app_mode;
+    let coin;
 
-    (hrp, app_mode) = match matches.value_of("coin-type") {
+    (hrp, coin) = match matches.value_of("coin-type") {
         Some(c) => match c {
-            "iota" => ("iota", AppModes::ModeIOTANova),
-            "smr" => ("smr", AppModes::ModeShimmerNova),
-            "rms" => ("rms", AppModes::ModeShimmerNovaTestnet),
-            "atoi" => ("atoi", AppModes::ModeIOTAStardustTestnet),
+            "iota" => ("iota", CoinType::IOTA),
+            "smr" => ("smr", CoinType::Shimmer),
+            "rms" => ("rms", CoinType::Testnet),
+            "atoi" => ("atoi", CoinType::Testnet),
             _ => panic!("unknown coin type"),
         },
-        None => ("smr", AppModes::ModeShimmer),
+        None => ("smr", CoinType::Shimmer),
     };
-
-    let chain = CoinType::from(app_mode);
 
     let count = match matches.value_of("number") {
         Some(c) => c.parse::<u32>().unwrap(),
@@ -92,7 +89,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     for n in 0..count {
         let account = n | 0x80000000;
 
-        let ledger = iota_ledger_nano::get_ledger_by_app_mode(app_mode, account, &transport_type, None)?;
+        let ledger = iota_ledger_nano::get_ledger_by_type(coin as u32, Protocols::Nova, account, &transport_type, None)?;
 
         let bip32_indices = LedgerBIP32Index {
             bip32_change: BIP32_CHANGE,
@@ -134,7 +131,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
         println!(
             "validation successful! Wallet address (2c'/{:x}'/{:x}'/{:x}'/{:x}'): {} (0x{})",
-            chain as i32,
+            coin as i32,
             account & !HARDENED,
             BIP32_CHANGE & !HARDENED,
             BIP32_INDEX & !HARDENED,

@@ -2,7 +2,7 @@ use bee_block::signature::Signature::Ed25519;
 use bee_block::unlock::Unlock;
 use clap::{App, Arg};
 use crypto::signatures::ed25519;
-use iota_ledger_nano::api::constants::AppModes;
+use iota_ledger_nano::api::constants::{CoinType, Protocols};
 use iota_ledger_nano::LedgerBIP32Index;
 use packable::Packable;
 use std::error::Error;
@@ -42,29 +42,29 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         iota_ledger_nano::TransportTypes::NativeHID
     };
 
-    let app_mode;
+    let coin;
 
-    (_, app_mode) = match matches.value_of("coin-type") {
+    (_, coin) = match matches.value_of("coin-type") {
         Some(c) => match c {
-            "iota" => ("iota", AppModes::ModeIOTANova),
-            "smr" => ("smr", AppModes::ModeShimmerNova),
-            "rms" => ("rms", AppModes::ModeShimmerNovaTestnet),
-            "atoi" => ("atoi", AppModes::ModeIOTAStardustTestnet),
+            "iota" => ("iota", CoinType::IOTA),
+            "smr" => ("smr", CoinType::Shimmer),
+            "rms" => ("rms", CoinType::Testnet),
+            "atoi" => ("atoi", CoinType::Testnet),
             _ => panic!("unknown coin type"),
         },
-        None => ("smr", AppModes::ModeShimmer),
+        None => ("smr", CoinType::Shimmer),
     };
 
     let account = 0x80000000;
 
     let ledger =
-        iota_ledger_nano::get_ledger_by_app_mode(app_mode, account, &transport_type, None)?;
+        iota_ledger_nano::get_ledger_by_type(coin as u32, Protocols::Nova, account, &transport_type, None)?;
 
     let bip32_index = LedgerBIP32Index {
         bip32_change: BIP32_CHANGE,
         bip32_index: BIP32_INDEX,
     };
-    let bip32_indices = vec![bip32_index];
+    let bip32_indices = [bip32_index];
     let signing_input_hex_32bytes =
         "351acfc38480083ca4855d832f662b4f00d26fc875e8477924a4678e7f7a3c32";
     let signing_input_hex_64bytes = "351acfc38480083ca4855d832f662b4f00d26fc875e8477924a4678e7f7a3c3223fa8d3d9e3fd76795d069bf2b79e55ec7ab9cf309727cac446910ccebf78b3a";

@@ -1,3 +1,5 @@
+use crate::api::errors::APIError;
+
 pub const HARDENED: u32 = 0x80000000;
 
 pub const DATA_BLOCK_SIZE: usize = 251;
@@ -52,7 +54,17 @@ pub(crate) enum APDUInstructionsBolos {
 pub enum Apps {
     AppIOTA = 0,
     AppShimmer = 1,
-    Unknown,
+}
+
+impl TryFrom<u8> for Apps {
+    type Error = APIError;
+    fn try_from(app: u8) -> Result<Self, Self::Error> {
+        match app {
+            0 => Ok(Apps::AppIOTA),
+            1 => Ok(Apps::AppShimmer),
+            _ => Err(APIError::Unknown),
+        }
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -62,62 +74,61 @@ pub enum CoinType {
     Testnet = 0x1,
 }
 
+impl TryFrom<u32> for CoinType {
+    type Error = APIError;
+    fn try_from(coin_type: u32) -> Result<Self, Self::Error> {
+        match coin_type {
+            x if x == CoinType::IOTA as u32 => Ok(CoinType::IOTA),
+            x if x == CoinType::Shimmer as u32 => Ok(CoinType::Shimmer),
+            x if x == CoinType::Testnet as u32 => Ok(CoinType::Testnet),
+            _ => Err(APIError::Unknown),
+        }
+    }
+}
+
+pub enum Protocols {
+    Stardust,
+    Nova,
+}
+
 #[derive(Copy, Clone)]
 pub enum AppModes {
     ModeIOTAStardust = 0x01,
     ModeIOTAStardustTestnet = 0x81,
     ModeShimmerClaiming = 0x02,
     ModeShimmerClaimingTestnet = 0x82,
-    ModeShimmer = 0x03,
-    ModeShimmerTestnet = 0x83,
+    ModeShimmerStardust = 0x03,
+    ModeShimmerStardustTestnet = 0x83,
     ModeIOTANova = 0x04,
     ModeIOTANovaTestnet = 0x84,
     ModeShimmerNova = 0x05,
     ModeShimmerNovaTestnet = 0x85,
 }
 
-impl From<AppModes> for CoinType {
-    fn from(app_mode: AppModes) -> Self {
-        match app_mode {
-            AppModes::ModeShimmerClaiming | AppModes::ModeIOTAStardust | AppModes::ModeIOTANova => {
-                CoinType::IOTA
+pub fn get_app_mode(coin_type: CoinType, app: Apps, protocol: Protocols, bip32_account: u32) -> Result<AppModes, APIError> {
+    match (app, protocol, coin_type) {
+        // IOTA App
+        (Apps::AppIOTA, Protocols::Stardust, CoinType::IOTA) => Ok(AppModes::ModeIOTAStardust),
+        (Apps::AppIOTA, Protocols::Stardust, CoinType::Testnet) => Ok(AppModes::ModeIOTAStardustTestnet),
+        (Apps::AppIOTA, Protocols::Nova, CoinType::IOTA) => Ok(AppModes::ModeIOTANova),
+        (Apps::AppIOTA, Protocols::Nova, CoinType::Testnet) => Ok(AppModes::ModeIOTANovaTestnet),
+
+        // Shimmer APP
+        (Apps::AppShimmer, Protocols::Stardust, CoinType::IOTA) => Ok(AppModes::ModeShimmerClaiming),
+        (Apps::AppShimmer, Protocols::Stardust, CoinType::Shimmer) => Ok(AppModes::ModeShimmerStardust),
+        (Apps::AppShimmer, Protocols::Stardust, CoinType::Testnet) => {
+            if (bip32_account & 0x40000000) == 0 {
+                Ok(AppModes::ModeShimmerStardustTestnet)
+            } else {
+                Ok(AppModes::ModeShimmerClaimingTestnet)
             }
-            AppModes::ModeShimmer | AppModes::ModeShimmerNova => CoinType::Shimmer,
-            AppModes::ModeShimmerClaimingTestnet
-            | AppModes::ModeIOTAStardustTestnet
-            | AppModes::ModeShimmerTestnet
-            | AppModes::ModeIOTANovaTestnet
-            | AppModes::ModeShimmerNovaTestnet => CoinType::Testnet,
-        }
+        },
+        (Apps::AppShimmer, Protocols::Nova, CoinType::Shimmer) => Ok(AppModes::ModeShimmerNova),
+        (Apps::AppShimmer, Protocols::Nova, CoinType::Testnet) => Ok(AppModes::ModeShimmerNovaTestnet),
+        _ => Err(APIError::Unknown),
     }
 }
 
-impl From<AppModes> for Apps {
-    fn from(app_mode: AppModes) -> Self {
-        match app_mode {
-            AppModes::ModeShimmerClaiming
-            | AppModes::ModeIOTAStardust
-            | AppModes::ModeIOTAStardustTestnet
-            | AppModes::ModeIOTANova
-            | AppModes::ModeIOTANovaTestnet => Apps::AppIOTA,
-            AppModes::ModeShimmerClaimingTestnet
-            | AppModes::ModeShimmer
-            | AppModes::ModeShimmerTestnet
-            | AppModes::ModeShimmerNova
-            | AppModes::ModeShimmerNovaTestnet => Apps::AppShimmer,
-        }
-    }
-}
-
-impl From<u8> for Apps {
-    fn from(app: u8) -> Self {
-        match app {
-            0 => Apps::AppIOTA,
-            1 => Apps::AppShimmer,
-            _ => Apps::Unknown,
-        }
-    }
-}
 #[derive(Debug, Copy, Clone)]
 pub enum DataTypeEnum {
     Empty = 0,

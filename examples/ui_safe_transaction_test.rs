@@ -4,6 +4,7 @@ use crypto::hashes::blake2b::Blake2b256;
 use crypto::hashes::Digest;
 
 use iota_ledger_nano::LedgerBIP32Index;
+use iota_ledger_nano::api::constants::Protocols;
 
 use bee_block::address::Address;
 use bee_block::address::Ed25519Address;
@@ -47,7 +48,7 @@ pub fn random_essence(
     let account = HARDENED;
 
     // get new ledger object (for testing)
-    ledger.set_account(chain, account)?;
+    ledger.set_account(chain, Protocols::Stardust, account)?;
 
     let mut key_indices: Vec<LedgerBIP32Index> = Vec::new();
 
@@ -189,7 +190,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         None => 0x107a,
     };
 
-    let mut ledger = iota_ledger_nano::get_ledger_by_type(chain, HARDENED, &transport_type, None)?;
+    let mut ledger = iota_ledger_nano::get_ledger_by_type(chain, Protocols::Stardust, HARDENED, &transport_type, None)?;
 
     random_essence(chain, &mut ledger)?;
 

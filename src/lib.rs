@@ -3,10 +3,11 @@
 use std::convert::TryInto;
 
 pub mod ledger;
+use api::constants::Protocols;
 pub use ledger::ledger_apdu::{APDUAnswer, APDUCommand};
 
 use crate::api::constants;
-use crate::api::constants::{AppConfigFlags, AppModes, Apps, DataTypeEnum, CoinType};
+use crate::api::constants::{AppConfigFlags, DataTypeEnum, CoinType};
 use crate::api::errors::APIError;
 
 pub use crate::ledger::ledger_transport_tcp::Callback;
@@ -64,8 +65,9 @@ pub struct LedgerHardwareWallet {
 }
 
 /// Get Ledger by transport_type
-pub fn get_ledger_by_type(
+pub fn get_ledger_by_type (
     coin_type: u32,
+    protocol: Protocols,
     bip32_account: u32,
     transport_type: &TransportTypes,
     callback: Option<crate::ledger::ledger_transport_tcp::Callback>,
@@ -73,22 +75,7 @@ pub fn get_ledger_by_type(
     let ledger = crate::LedgerHardwareWallet::new(transport_type, callback)?;
 
     // set account
-    ledger.set_account(coin_type, bip32_account)?;
-
-    Ok(Box::new(ledger))
-}
-
-/// Get Ledger by transport_type
-pub fn get_ledger_by_app_mode(
-    app_mode: AppModes,
-    bip32_account: u32,
-    transport_type: &TransportTypes,
-    callback: Option<crate::ledger::ledger_transport_tcp::Callback>,
-) -> Result<Box<LedgerHardwareWallet>, APIError> {
-    let ledger = crate::LedgerHardwareWallet::new(transport_type, callback)?;
-
-    // set account
-    ledger.set_account_by_app_mode(app_mode, bip32_account)?;
+    ledger.set_account(coin_type, protocol, bip32_account)?;
 
     Ok(Box::new(ledger))
 }
@@ -137,6 +124,7 @@ pub fn exit_app(transport_type: &TransportTypes) -> Result<(), APIError> {
 /// Get Ledger
 /// If is_simulator is true, you will get a TCP transfer for use with Speculos
 /// If it's false, you will get a native USB HID transfer for real devices
+#[cfg(not(feature = "nova"))]
 pub fn get_ledger(
     coin_type: u32,
     bip32_account: u32,
@@ -146,7 +134,26 @@ pub fn get_ledger(
         true => TransportTypes::TCP,
         false => TransportTypes::NativeHID,
     };
-    get_ledger_by_type(coin_type, bip32_account, &transport_type, None)
+    // fixed to Stardust for compatibility
+    get_ledger_by_type(coin_type, Protocols::Stardust, bip32_account, &transport_type, None)
+}
+
+/// Get Ledger
+/// If is_simulator is true, you will get a TCP transfer for use with Speculos
+/// If it's false, you will get a native USB HID transfer for real devices
+#[cfg(feature = "nova")]
+pub fn get_ledger(
+    coin_type: u32,
+    protocol: Protocols,
+    bip32_account: u32,
+    is_simulator: bool,
+) -> Result<Box<LedgerHardwareWallet>, APIError> {
+    let transport_type = match is_simulator {
+        true => TransportTypes::TCP,
+        false => TransportTypes::NativeHID,
+    };
+    // fixed to Stardust for compatibility
+    get_ledger_by_type(coin_type, protocol, bip32_account, &transport_type, None)
 }
 
 impl LedgerHardwareWallet {
@@ -323,7 +330,7 @@ impl LedgerHardwareWallet {
     ///
     /// The MSB (=hardened) always must be set.
     /// deprecated, will be removed in future
-    pub fn set_account(&self, coin_type: u32, bip32_account: u32) -> Result<(), APIError> {
+    pub fn set_account(&self, coin_type: u32, protocol: Protocols, bip32_account: u32) -> Result<(), APIError> {
         let app_config = crate::api::get_app_config::exec(self.transport())?;
 
         let flags = AppConfigFlags::from(app_config.flags);
@@ -332,72 +339,13 @@ impl LedgerHardwareWallet {
             return Err(APIError::IncorrectP1P2);
         }
 
-        // IOTA App
-        // 0x00: unused (was formerly IOTA + Chrysalis)
-        // 0x80: unused (was formerly IOTA + Chrysalis Testnet)
-        // 0x01: (107a) IOTA + Stardust
-        // 0x81:    (1) IOTA + Stardust Testnet
+        // convert numeric coin type into enum type
+        let coin_type = CoinType::try_from(coin_type)?;
 
-        // Shimmer App
-        // 0x02: (107a) Shimmer Claiming (from IOTA)
-        // 0x82:    (1) Shimmer Claiming (from IOTA) (Testnet)
-        // 0x03: (107b) Shimmer (default)
-        // 0x83:    (1) Shimmer Testnet
-
-        let app_mode = match flags.app {
-            Apps::AppIOTA => match coin_type {
-                // IOTA + stardust
-                0x107a => AppModes::ModeIOTAStardust,
-                // IOTA Testnet + stardust
-                0x1 => AppModes::ModeIOTAStardustTestnet,
-                _ => return Err(APIError::IncorrectP1P2),
-            },
-            Apps::AppShimmer => match coin_type {
-                // shimmer claiming
-                0x107a => AppModes::ModeShimmerClaiming,
-                // shimmer
-                0x107b => AppModes::ModeShimmer,
-                // shimmer claiming / shimmer testnet
-                // use account to differenciate if claiming or not
-                0x1 => {
-                    if bip32_account & 0x40000000 != 0 {
-                        AppModes::ModeShimmerClaimingTestnet
-                    } else {
-                        AppModes::ModeShimmerTestnet
-                    }
-                }
-                _ => return Err(APIError::IncorrectP1P2),
-            },
-            _ => return Err(APIError::WrongApp),
-        };
+        let app_mode = constants::get_app_mode(coin_type, flags.app, protocol, bip32_account)?;
 
         api::set_account::exec(app_mode as u8, self.transport(), bip32_account)?;
         Ok(())
-    }
-
-    /// Set BIP32 Account Index and App Mode
-    ///
-    /// For all crypto operations following BIP32 path is used: `2c'/107a'/account'/index'`. This command sets the
-    /// third component of the BIP32 path. The account index remains valid until the API is reset.
-    ///
-    /// The MSB (=hardened) always must be set.
-    pub fn set_account_by_app_mode(
-        &self,
-        app_mode: AppModes,
-        bip32_account: u32,
-    ) -> Result<CoinType, APIError> {
-        let app_config = crate::api::get_app_config::exec(self.transport())?;
-
-        let flags = AppConfigFlags::from(app_config.flags);
-
-        // check if the correct app is opened
-        if Apps::from(app_mode) != flags.app {
-            return Err(APIError::WrongApp);
-        }
-
-        api::set_account::exec(app_mode as u8, self.transport(), bip32_account)?;
-
-        Ok(CoinType::from(app_mode))
     }
 
     pub fn get_addresses(
