@@ -8,7 +8,7 @@ use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
 
 use iota_ledger_nano::LedgerBIP32Index;
-use iota_ledger_nano::api::constants::Protocols;
+use iota_ledger_nano::api::constants::Protocol;
 
 use bip39::Mnemonic;
 
@@ -133,7 +133,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     };
 
     let ledger =
-        iota_ledger_nano::get_ledger_by_type(0x107a, Protocols::Stardust, BIP32_ACCOUNT, &transport_type, None)?;
+        iota_ledger_nano::get_ledger_by_type(Protocol::Stardust, 0x107a, BIP32_ACCOUNT, &transport_type, None)?;
 
     let (hrp, chain) = match !ledger.is_debug_app() {
         true => ("iota", 0x107a),

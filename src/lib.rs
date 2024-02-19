@@ -3,7 +3,7 @@
 use std::convert::TryInto;
 
 pub mod ledger;
-use api::constants::Protocols;
+use api::constants::Protocol;
 pub use ledger::ledger_apdu::{APDUAnswer, APDUCommand};
 
 use crate::api::constants;
@@ -66,8 +66,8 @@ pub struct LedgerHardwareWallet {
 
 /// Get Ledger by transport_type
 pub fn get_ledger_by_type (
+    protocol: Protocol,
     coin_type: u32,
-    protocol: Protocols,
     bip32_account: u32,
     transport_type: &TransportTypes,
     callback: Option<crate::ledger::ledger_transport_tcp::Callback>,
@@ -75,7 +75,7 @@ pub fn get_ledger_by_type (
     let ledger = crate::LedgerHardwareWallet::new(transport_type, callback)?;
 
     // set account
-    ledger.set_account(coin_type, protocol, bip32_account)?;
+    ledger.set_account(protocol, coin_type, bip32_account)?;
 
     Ok(Box::new(ledger))
 }
@@ -135,7 +135,7 @@ pub fn get_ledger(
         false => TransportTypes::NativeHID,
     };
     // fixed to Stardust for compatibility
-    get_ledger_by_type(coin_type, Protocols::Stardust, bip32_account, &transport_type, None)
+    get_ledger_by_type(Protocol::Stardust, coin_type, bip32_account, &transport_type, None)
 }
 
 /// Get Ledger
@@ -143,8 +143,8 @@ pub fn get_ledger(
 /// If it's false, you will get a native USB HID transfer for real devices
 #[cfg(feature = "nova")]
 pub fn get_ledger(
+    protocol: Protocol,
     coin_type: u32,
-    protocol: Protocols,
     bip32_account: u32,
     is_simulator: bool,
 ) -> Result<Box<LedgerHardwareWallet>, APIError> {
@@ -153,7 +153,7 @@ pub fn get_ledger(
         false => TransportTypes::NativeHID,
     };
     // fixed to Stardust for compatibility
-    get_ledger_by_type(coin_type, protocol, bip32_account, &transport_type, None)
+    get_ledger_by_type(protocol, coin_type, bip32_account, &transport_type, None)
 }
 
 impl LedgerHardwareWallet {
@@ -330,7 +330,7 @@ impl LedgerHardwareWallet {
     ///
     /// The MSB (=hardened) always must be set.
     /// deprecated, will be removed in future
-    pub fn set_account(&self, coin_type: u32, protocol: Protocols, bip32_account: u32) -> Result<(), APIError> {
+    pub fn set_account(&self, protocol: Protocol, coin_type: u32, bip32_account: u32) -> Result<(), APIError> {
         let app_config = crate::api::get_app_config::exec(self.transport())?;
 
         let flags = AppConfigFlags::from(app_config.flags);
@@ -342,7 +342,7 @@ impl LedgerHardwareWallet {
         // convert numeric coin type into enum type
         let coin_type = CoinType::try_from(coin_type)?;
 
-        let app_mode = constants::get_app_mode(coin_type, flags.app, protocol, bip32_account)?;
+        let app_mode = constants::get_app_mode(protocol, coin_type, flags.app, bip32_account)?;
 
         api::set_account::exec(app_mode as u8, self.transport(), bip32_account)?;
         Ok(())

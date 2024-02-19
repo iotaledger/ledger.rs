@@ -86,7 +86,7 @@ impl TryFrom<u32> for CoinType {
     }
 }
 
-pub enum Protocols {
+pub enum Protocol {
     Stardust,
     Nova,
 }
@@ -105,26 +105,26 @@ pub enum AppModes {
     ModeShimmerNovaTestnet = 0x85,
 }
 
-pub fn get_app_mode(coin_type: CoinType, app: Apps, protocol: Protocols, bip32_account: u32) -> Result<AppModes, APIError> {
+pub fn get_app_mode(protocol: Protocol, coin_type: CoinType, app: Apps, bip32_account: u32) -> Result<AppModes, APIError> {
     match (app, protocol, coin_type) {
         // IOTA App
-        (Apps::AppIOTA, Protocols::Stardust, CoinType::IOTA) => Ok(AppModes::ModeIOTAStardust),
-        (Apps::AppIOTA, Protocols::Stardust, CoinType::Testnet) => Ok(AppModes::ModeIOTAStardustTestnet),
-        (Apps::AppIOTA, Protocols::Nova, CoinType::IOTA) => Ok(AppModes::ModeIOTANova),
-        (Apps::AppIOTA, Protocols::Nova, CoinType::Testnet) => Ok(AppModes::ModeIOTANovaTestnet),
+        (Apps::AppIOTA, Protocol::Stardust, CoinType::IOTA) => Ok(AppModes::ModeIOTAStardust),
+        (Apps::AppIOTA, Protocol::Stardust, CoinType::Testnet) => Ok(AppModes::ModeIOTAStardustTestnet),
+        (Apps::AppIOTA, Protocol::Nova, CoinType::IOTA) => Ok(AppModes::ModeIOTANova),
+        (Apps::AppIOTA, Protocol::Nova, CoinType::Testnet) => Ok(AppModes::ModeIOTANovaTestnet),
 
         // Shimmer APP
-        (Apps::AppShimmer, Protocols::Stardust, CoinType::IOTA) => Ok(AppModes::ModeShimmerClaiming),
-        (Apps::AppShimmer, Protocols::Stardust, CoinType::Shimmer) => Ok(AppModes::ModeShimmerStardust),
-        (Apps::AppShimmer, Protocols::Stardust, CoinType::Testnet) => {
+        (Apps::AppShimmer, Protocol::Stardust, CoinType::IOTA) => Ok(AppModes::ModeShimmerClaiming),
+        (Apps::AppShimmer, Protocol::Stardust, CoinType::Shimmer) => Ok(AppModes::ModeShimmerStardust),
+        (Apps::AppShimmer, Protocol::Stardust, CoinType::Testnet) => {
             if (bip32_account & 0x40000000) == 0 {
                 Ok(AppModes::ModeShimmerStardustTestnet)
             } else {
                 Ok(AppModes::ModeShimmerClaimingTestnet)
             }
         },
-        (Apps::AppShimmer, Protocols::Nova, CoinType::Shimmer) => Ok(AppModes::ModeShimmerNova),
-        (Apps::AppShimmer, Protocols::Nova, CoinType::Testnet) => Ok(AppModes::ModeShimmerNovaTestnet),
+        (Apps::AppShimmer, Protocol::Nova, CoinType::Shimmer) => Ok(AppModes::ModeShimmerNova),
+        (Apps::AppShimmer, Protocol::Nova, CoinType::Testnet) => Ok(AppModes::ModeShimmerNovaTestnet),
         _ => Err(APIError::Unknown),
     }
 }

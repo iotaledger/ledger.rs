@@ -15,7 +15,7 @@ use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
 
 use iota_ledger_nano::LedgerBIP32Index;
-use iota_ledger_nano::api::constants::Protocols;
+use iota_ledger_nano::api::constants::Protocol;
 
 use iota_ledger_nano::{APDUAnswer, APDUCommand};
 
@@ -364,7 +364,7 @@ pub fn test_blindsigning(
     println!("account: 0x{:08x}", account & !0x80000000);
 
     // get new ledger object (for testing)
-    ledger.set_account(chain, Protocols::Stardust, account)?;
+    ledger.set_account(Protocol::Stardust, chain, account)?;
 
     let mut address_index_recorders: Vec<InputIndexRecorder> = Vec::new();
 
@@ -538,7 +538,7 @@ pub fn random_essence(
     println!("account: 0x{:08x}", account & !0x80000000);
 
     // get new ledger object (for testing)
-    ledger.set_account(chain, Protocols::Stardust, account)?;
+    ledger.set_account(Protocol::Stardust, chain, account)?;
 
     let mut address_index_recorders: Vec<InputIndexRecorder> = Vec::new();
 
@@ -1074,8 +1074,8 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     };
 
     let mut ledger = iota_ledger_nano::get_ledger_by_type(
+        Protocol::Stardust,
         chain,
-        Protocols::Stardust,
         0x80000000,
         &transport_type,
         if matches.is_present("recorder") {

@@ -2,7 +2,7 @@ use bee_block::signature::Signature::Ed25519;
 use bee_block::unlock::Unlock;
 use clap::{App, Arg};
 use crypto::signatures::ed25519;
-use iota_ledger_nano::api::constants::{CoinType, Protocols};
+use iota_ledger_nano::api::constants::{CoinType, Protocol};
 use iota_ledger_nano::LedgerBIP32Index;
 use packable::Packable;
 use std::error::Error;
@@ -58,7 +58,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     let account = 0x80000000;
 
     let ledger =
-        iota_ledger_nano::get_ledger_by_type(coin as u32, Protocols::Nova, account, &transport_type, None)?;
+        iota_ledger_nano::get_ledger_by_type(Protocol::Nova, coin as u32, account, &transport_type, None)?;
 
     let bip32_index = LedgerBIP32Index {
         bip32_change: BIP32_CHANGE,

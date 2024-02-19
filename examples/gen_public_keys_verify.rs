@@ -1,6 +1,6 @@
 use bech32::{self, ToBase32};
 use clap::{App, Arg};
-use iota_ledger_nano::api::constants::{CoinType, Protocols};
+use iota_ledger_nano::api::constants::{CoinType, Protocol};
 
 use std::error::Error;
 
@@ -89,7 +89,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     for n in 0..count {
         let account = n | 0x80000000;
 
-        let ledger = iota_ledger_nano::get_ledger_by_type(coin as u32, Protocols::Nova, account, &transport_type, None)?;
+        let ledger = iota_ledger_nano::get_ledger_by_type(Protocol::Nova, coin as u32, account, &transport_type, None)?;
 
         let bip32_indices = LedgerBIP32Index {
             bip32_change: BIP32_CHANGE,
